@@ -1,4 +1,17 @@
 {
+    "Strategic Alpha Bundle": {
+        "default": {
+            "symbol_val": "TQQQ",
+            "start_date_val": "2010-02-11",
+            "initial_capital_val": 100000.0,
+            "side_fund_val": "SHY",
+            "cash_floor_pct": 20.0,
+            "cash_yield_apr": 0.0,
+            "benchmark_symbol": "SPY",
+            "slippage_bps": 5.0,
+            "commission": 0.0
+        }
+    },
     "Moving Average Strategy": {
         "default": {
             "symbol_val": "TQQQ",
