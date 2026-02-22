@@ -9,7 +9,6 @@ import yfinance as yf
 import numpy as np
 import streamlit as st
 from functools import lru_cache
-import requests
 import datetime
 
 GLOBAL_DATA_BUFFER_DAYS = 730 # 2 Years standard buffer
@@ -126,14 +125,6 @@ def make_empty_result(
 
 
 
-def get_yf_session():
-    """Create a requests session with a User-Agent to avoid yfinance rate limits."""
-    session = requests.Session()
-    session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    })
-    return session
-
 def get_data_start_date(start_date_val, buffer_days=GLOBAL_DATA_BUFFER_DAYS):
     """
     Standardize the data download start date to maximize cache hits.
@@ -147,19 +138,19 @@ def get_data_start_date(start_date_val, buffer_days=GLOBAL_DATA_BUFFER_DAYS):
 
 @st.cache_data(show_spinner=False, ttl=86400)
 def _cached_yf_download(ticker, start_date):
-    """Internal cached downloader with rate-limit mitigation."""
+    """Internal cached downloader."""
     try:
         t = ticker.upper() if isinstance(ticker, str) else ticker
         s = pd.to_datetime(start_date).strftime('%Y-%m-%d')
-        # Use session to help with rate limits
-        data = yf.download(t, start=s, progress=False, auto_adjust=True, session=get_yf_session())
+        # Note: Do not pass custom session as it causes curl_cffi errors in newer yf versions
+        data = yf.download(t, start=s, progress=False, auto_adjust=True)
         return data
     except Exception as e:
         return pd.DataFrame()
 
 def download_price_data(ticker, start_date, progress=False):
     """
-    Download price data with robust MultiIndex handling for single tickers.
+    Download price data with robust handling for yfinance's MultiIndex structure.
     """
     raw = _cached_yf_download(ticker, start_date)
     
@@ -168,26 +159,28 @@ def download_price_data(ticker, start_date, progress=False):
     
     prices = pd.DataFrame()
     
-    # 1. Handle MultiIndex columns (Attribute, Ticker) or (Ticker, Attribute)
+    # yfinance often returns MultiIndex columns even for single tickers
     if isinstance(raw.columns, pd.MultiIndex):
-        # Try to find 'Close' in any level
-        for level in range(raw.columns.nlevels):
-            if 'Close' in raw.columns.get_level_values(level):
-                # We found the level with attributes. Filter for Close.
-                # If there are multiple tickers here (unexpected for this func), we take the first.
-                temp = raw.xs('Close', axis=1, level=level)
-                if isinstance(temp, pd.DataFrame):
-                    prices = temp.iloc[:, 0:1] # Take first ticker
-                else:
-                    prices = temp.to_frame()
-                break
+        # Look for the 'Close' attribute across levels
+        for level_name in ['Price', None, 0, 1]: # common level names/indices
+            try:
+                if 'Close' in raw.columns.get_level_values(level_name if level_name is not None else 0):
+                    prices = raw.xs('Close', axis=1, level=(level_name if level_name is not None else 0))
+                    break
+            except: continue
     else:
-        # 2. Simple index case
         if 'Close' in raw.columns:
             prices = raw[['Close']]
-            
+
     if prices.empty:
         return pd.DataFrame()
+        
+    # If it's a DataFrame with ticker columns, take the first one
+    if isinstance(prices, pd.DataFrame) and prices.shape[1] > 1:
+        prices = prices.iloc[:, 0:1]
+    
+    if isinstance(prices, pd.Series):
+        prices = prices.to_frame()
         
     prices.columns = ['Close']
     return prices.dropna()
@@ -195,11 +188,11 @@ def download_price_data(ticker, start_date, progress=False):
 
 @st.cache_data(show_spinner=False, ttl=86400)
 def _cached_yf_download_multi(tickers, start_date):
-    """Internal cached downloader for multiple tickers with session support."""
+    """Internal cached downloader for multiple tickers."""
     try:
         t_list = sorted(tickers) if isinstance(tickers, list) else tickers
         s = pd.to_datetime(start_date).strftime('%Y-%m-%d')
-        data = yf.download(t_list, start=s, progress=False, auto_adjust=True, session=get_yf_session())
+        data = yf.download(t_list, start=s, progress=False, auto_adjust=True)
         return data
     except Exception:
         return pd.DataFrame()
@@ -218,13 +211,13 @@ def download_multiple_tickers(tickers, start_date, progress=False):
     
     # For multiple tickers, yf returns [Attribute, Ticker] with auto_adjust=True
     if isinstance(raw.columns, pd.MultiIndex):
-        # Look for 'Close' level
-        for level in range(raw.columns.nlevels):
-            if 'Close' in raw.columns.get_level_values(level):
-                prices = raw.xs('Close', axis=1, level=level)
-                return prices.dropna()
+        for level_name in ['Price', None, 0, 1]:
+            try:
+                if 'Close' in raw.columns.get_level_values(level_name if level_name is not None else 0):
+                    prices = raw.xs('Close', axis=1, level=(level_name if level_name is not None else 0))
+                    return prices.dropna()
+            except: continue
     else:
-        # If it returned a single ticker result 
         if 'Close' in raw.columns:
             return raw[['Close']].dropna()
     
