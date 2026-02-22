@@ -131,7 +131,7 @@ def get_yf_session():
     })
     return session
 
-@st.cache_data(show_spinner=False, ttl=3600)
+@st.cache_data(show_spinner=False, ttl=86400)
 def _cached_yf_download(ticker, start_date):
     """Internal cached downloader with rate-limit mitigation."""
     try:
@@ -179,7 +179,7 @@ def download_price_data(ticker, start_date, progress=False):
     return prices.dropna()
 
 
-@st.cache_data(show_spinner=False, ttl=3600)
+@st.cache_data(show_spinner=False, ttl=86400)
 def _cached_yf_download_multi(tickers, start_date):
     """Internal cached downloader for multiple tickers with session support."""
     try:
