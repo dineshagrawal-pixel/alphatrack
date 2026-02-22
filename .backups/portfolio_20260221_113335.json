@@ -1,0 +1,131 @@
+{
+    "accounts": {
+        "Main Account": {
+            "trades": [
+                {
+                    "date": "2025-02-20",
+                    "type": "TRADE",
+                    "ticker": "TQQQ",
+                    "shares": 26.0,
+                    "price": 50.060001373291016,
+                    "cash_delta": -1301.5600357055664
+                },
+                {
+                    "date": "2026-02-20",
+                    "type": "CASH",
+                    "ticker": "CASH",
+                    "shares": 0.0,
+                    "price": 1.0,
+                    "cash_delta": 1000.0
+                },
+                {
+                    "date": "2026-02-20",
+                    "type": "SELL",
+                    "ticker": "TQQQ",
+                    "shares": -10.6556,
+                    "price": 50.06,
+                    "cash_delta": 533.42
+                },
+                {
+                    "date": "2026-01-21",
+                    "type": "BUY",
+                    "ticker": "TQQQ",
+                    "shares": 120.0,
+                    "price": 40.06,
+                    "cash_delta": -4807.2
+                },
+                {
+                    "date": "2023-02-01",
+                    "type": "CASH",
+                    "ticker": "CASH",
+                    "shares": 100000.0,
+                    "price": 1.0,
+                    "cash_delta": 100000.0
+                }
+            ],
+            "equity_curve": [
+                {
+                    "date": "2026-02-20",
+                    "equity": 70060.00137329102
+                },
+                {
+                    "date": "2026-02-20",
+                    "equity": 70060.00137329102
+                },
+                {
+                    "date": "2026-02-20",
+                    "equity": 71060.00137329102
+                },
+                {
+                    "date": "2026-02-20",
+                    "equity": 1000.0
+                },
+                {
+                    "date": "2026-01-21",
+                    "equity": 2200.0
+                },
+                {
+                    "date": "2023-02-01",
+                    "equity": 102200.0
+                }
+            ],
+            "linked_profile": "9 Sig Strategy | default",
+            "drift_threshold": 5.0,
+            "initial_date": "2023-02-21"
+        },
+        "market-breadth-1": {
+            "trades": [],
+            "equity_curve": [],
+            "linked_profile": "Moving Average Strategy | defaul 2",
+            "drift_threshold": 5.0,
+            "initial_date": "2026-02-21"
+        },
+        "Moving Average Strategy": {
+            "trades": [],
+            "equity_curve": [],
+            "linked_profile": "None",
+            "drift_threshold": 5.0,
+            "initial_date": "2026-02-21"
+        },
+        "Test Account": {
+            "linked_profile": "None",
+            "trades": [],
+            "equity_curve": [],
+            "drift_threshold": 5.0,
+            "initial_date": "2026-02-21"
+        },
+        "SMA  TQQQ": {
+            "linked_profile": "Moving Average Strategy | default",
+            "trades": [
+                {
+                    "date": "2026-02-21",
+                    "type": "CORRECTION",
+                    "ticker": "TQQQ",
+                    "shares": 1000.0,
+                    "price": 50.060001373291016,
+                    "cash_delta": 20000.0
+                },
+                {
+                    "date": "2025-02-01",
+                    "type": "BUY",
+                    "ticker": "TQQQ",
+                    "shares": 10.0,
+                    "price": 40.06,
+                    "cash_delta": -400.6
+                }
+            ],
+            "equity_curve": [
+                {
+                    "date": "2026-02-21",
+                    "equity": 70060.0
+                },
+                {
+                    "date": "2025-02-01",
+                    "equity": 70160.0
+                }
+            ],
+            "drift_threshold": 5.0,
+            "initial_date": "2026-02-21"
+        }
+    }
+}
