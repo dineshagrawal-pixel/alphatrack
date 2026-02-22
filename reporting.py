@@ -1780,7 +1780,15 @@ def render_rolling_returns_analysis(df_results, benchmark_symbol="SPY"):
         # Must apply AFTER gradients — explicitly paints null cells white so background_gradient doesn't leave them black
         styler_ann = styler_ann.highlight_null(props='background-color: #f8f8f8; color: #bbbbbb;')
 
-        st.dataframe(styler_ann, use_container_width=True)
+        # Prepare column config for MultiIndex to ensure numeric sorting
+        roll_column_config = {
+            col: st.column_config.NumberColumn(
+                col[1], 
+                format="%+.2f%%" if col in diff_cols else "%.2f%%"
+            ) for col in df_ann_roll.columns
+        }
+
+        st.dataframe(styler_ann, use_container_width=True, column_config=roll_column_config)
     
     # Rolling Return Chart (3 Years)
     window_3y = 3 * 252
@@ -2692,15 +2700,15 @@ def render_annual_returns_table(df_results, initial_capital, benchmark_symbol="S
     
     column_config = {
         "Year": st.column_config.TextColumn("Year"),
-        "Strat Ret": st.column_config.TextColumn("Strategy Return"),
-        "Strat Bal": st.column_config.TextColumn("Strategy Balance"),
-        "Cash Bal": st.column_config.TextColumn("Cash Balance"),
-        "Cash %": st.column_config.TextColumn("Cash %"),
-        "BH Ret": st.column_config.TextColumn("B&H Return"),
-        "Diff": st.column_config.TextColumn(f"vs {benchmark_symbol}", help=f"Strategy Return minus {benchmark_symbol} Return. Green = outperformed, Red = underperformed."),
-        "BH Bal": st.column_config.TextColumn("B&H Balance"),
-        "Bench Ret": st.column_config.TextColumn(f"{benchmark_symbol} Return"),
-        "Bench Bal": st.column_config.TextColumn(f"{benchmark_symbol} Balance"),
+        "Strat Ret": st.column_config.NumberColumn("Strategy Return", format="%.2f%%"),
+        "Strat Bal": st.column_config.NumberColumn("Strategy Balance", format="$%,.0f"),
+        "Cash Bal": st.column_config.NumberColumn("Cash Balance", format="$%,.0f"),
+        "Cash %": st.column_config.NumberColumn("Cash %", format="%.1f%%"),
+        "BH Ret": st.column_config.NumberColumn("B&H Return", format="%.2f%%"),
+        "Diff": st.column_config.NumberColumn(f"vs {benchmark_symbol}", format="%+.2f%%", help=f"Strategy Return minus {benchmark_symbol} Return. Green = outperformed, Red = underperformed."),
+        "BH Bal": st.column_config.NumberColumn("B&H Balance", format="$%,.0f"),
+        "Bench Ret": st.column_config.NumberColumn(f"{benchmark_symbol} Return", format="%.2f%%"),
+        "Bench Bal": st.column_config.NumberColumn(f"{benchmark_symbol} Balance", format="$%,.0f"),
     }
     
     st.dataframe(styler, use_container_width=True, column_config=column_config)
