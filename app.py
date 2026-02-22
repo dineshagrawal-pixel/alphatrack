@@ -178,7 +178,13 @@ if nav_selection == "📈 Strategy Lab":
     # --- Results Display ---
     if 'last_result' in st.session_state and st.session_state.last_result is not None:
         result = st.session_state.last_result
-        if result.strategy_name == "Empty Result":
+        
+        # Safety check: if an old session has a tuple result, clear it to avoid crashes
+        if isinstance(result, tuple):
+            st.session_state.last_result = None
+            st.rerun()
+            
+        if hasattr(result, 'strategy_name') and result.strategy_name == "Empty Result":
             st.error("### ⚠️ Data Download Failed\nYahoo Finance is currently rate-limiting this request (common on shared hosting). Please try again in 5-10 minutes or try a different asset/date range.")
         else:
             generate_backtest_report(result)
