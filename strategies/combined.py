@@ -72,7 +72,7 @@ def run_combined_strategy(
         start_date_val=start_date_val,
         initial_capital_val=part_cap,
         cash_floor_pct_val=cash_floor_pct,
-        cash_yield_daily_val=cash_yield_apr, # standard volatility uses apr-to-daily transform in __init__
+        cash_yield_daily_val=(1 + cash_yield_apr)**(1/252), 
         benchmark_symbol=benchmark_symbol,
         slippage_bps=slippage_bps,
         commission=commission,
