@@ -140,7 +140,7 @@ def run_volatility_vix_strategy(
             investable = max(0, cash - (max_equity * cash_floor_pct))
             if investable > 0:
                 net_invested, cost = apply_trading_costs(investable, p, slippage_bps, commission)
-                stock_val = investable
+                stock_val += investable
                 cash -= net_invested
                 trade_log.append(create_trade_log_entry(date, p, None, 'OPEN', total_equity, amount=investable))
             
@@ -152,7 +152,7 @@ def run_volatility_vix_strategy(
                 close_trade_log_entry(trade, date, p, total_equity)
             
             proceeds, cost = apply_trading_costs(-stock_val, p, slippage_bps, commission)
-            cash = abs(proceeds)
+            cash += abs(proceeds)
             stock_val = 0.0
 
         # History
