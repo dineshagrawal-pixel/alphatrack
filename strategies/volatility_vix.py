@@ -22,6 +22,7 @@ def run_volatility_vix_strategy(
     symbol_val,
     start_date_val,
     initial_capital_val,
+    cash_floor_pct=0.20,
     cash_yield_apr=0.0,
     vix_ema_len=3,
     vix_ma_len=20,
@@ -69,6 +70,7 @@ def run_volatility_vix_strategy(
     cash = initial_capital_val
     stock_val = 0.0
     pos = 0 
+    max_equity = initial_capital_val
     trade_log = []  
     hist = []
     daily_yield = calculate_daily_yield(cash_yield_apr)
@@ -91,6 +93,32 @@ def run_volatility_vix_strategy(
             
         total_equity = stock_val + cash
         
+        # Monthly HWM and Cash Floor Update
+        is_first_day = (i == 0)
+        is_month_change = (i > 0 and date.month != df.index[i-1].month)
+        
+        if is_first_day or is_month_change:
+            if total_equity > max_equity:
+                max_equity = total_equity
+            cash_floor = max_equity * cash_floor_pct
+            
+            # Refill floor if long and cash is too low
+            if pos == 1 and cash < cash_floor:
+                shortfall = cash_floor - cash
+                sell_amt = min(stock_val, shortfall)
+                if sell_amt > 0:
+                    proceeds, cost = apply_trading_costs(-sell_amt, p, slippage_bps, commission)
+                    stock_val -= sell_amt
+                    cash += abs(proceeds)
+                    trade_log.append({
+                        'Date': date.date() if hasattr(date, 'date') else date,
+                        'Status': 'FLOOR REFILL',
+                        'Amt': round(sell_amt, 2),
+                        'Entry Price': round(p, 2),
+                        'Exit Price': 'N/A',
+                        'Profit %': 'N/A'
+                    })
+
         # Signal Generation (Use PREVIOUS day's data to avoid look-ahead bias)
         idx_in_full = df_full.index.get_loc(date)
         if idx_in_full > 0:
@@ -108,10 +136,13 @@ def run_volatility_vix_strategy(
         # Execution
         if pos == 0 and is_long_sig:
             pos = 1
-            net_invested, cost = apply_trading_costs(cash, p, slippage_bps, commission)
-            stock_val = net_invested
-            cash = 0.0
-            trade_log.append(create_trade_log_entry(date, p, None, 'OPEN', total_equity, amount=stock_val))
+            # Calculate investable cash (respecting floor)
+            investable = max(0, cash - (max_equity * cash_floor_pct))
+            if investable > 0:
+                net_invested, cost = apply_trading_costs(investable, p, slippage_bps, commission)
+                stock_val = investable
+                cash -= net_invested
+                trade_log.append(create_trade_log_entry(date, p, None, 'OPEN', total_equity, amount=investable))
             
         elif pos == 1 and is_close_sig:
             pos = 0

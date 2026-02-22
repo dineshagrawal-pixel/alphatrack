@@ -107,6 +107,7 @@ STRATEGIES = {
             {"name": "start_date_val", "label": "Start Date", "type": "date_input", "default": "2010-02-11", "help": "Beginning date for the backtest."},
             {"name": "end_date", "label": "End Date", "type": "date_input", "default": "today", "help": "Ending date for the backtest."},
             {"name": "initial_capital_val", "label": "Initial Capital", "type": "number_input", "default": 100000.0, "help": "Starting account balance."},
+            {"name": "cash_floor_pct", "label": "Cash Floor Percentage (%)", "type": "slider", "min": 0.0, "max": 50.0, "value": 20.0, "step": 1.0, "transform": lambda x: x / 100, "help": "Minimum percentage of the portfolio high-water mark to keep in cash.", "advanced": True},
             {"name": "vix_ema_len", "label": "VIX EMA Length", "type": "number_input", "min": 1, "value": 3, "step": 1, "help": "Period for the first EMA of VIX."},
             {"name": "vix_ma_len", "label": "VIX MA Length", "type": "number_input", "min": 1, "value": 20, "step": 1, "help": "Period for the EMA of the VIX EMA."},
             {"name": "vix_threshold", "label": "VIX Absolute Threshold", "type": "number_input", "min": 0.0, "value": 20.0, "step": 1.0, "help": "Absolute VIX level for entry/exit logic."},
