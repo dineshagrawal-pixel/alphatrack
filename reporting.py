@@ -1734,10 +1734,11 @@ def render_rolling_returns_analysis(df_results, benchmark_symbol="SPY"):
             # Add Strategy first
             if (period, "Strategy") in df_ann_roll.columns:
                 final_col_order.append((period, "Strategy"))
-            # Add Diff column right after Strategy if B&H exists
-            if (period, "Strategy") in df_ann_roll.columns and (period, "B&H") in df_ann_roll.columns:
-                diff_col = (period, "vs B&H")
-                df_ann_roll[diff_col] = df_ann_roll[(period, "Strategy")] - df_ann_roll[(period, "B&H")]
+            # Add Diff column right after Strategy if Benchmark exists
+            # The name used in active_p_names for the benchmark is the benchmark_symbol itself
+            if (period, "Strategy") in df_ann_roll.columns and (period, benchmark_symbol) in df_ann_roll.columns:
+                diff_col = (period, f"vs {benchmark_symbol}")
+                df_ann_roll[diff_col] = df_ann_roll[(period, "Strategy")] - df_ann_roll[(period, benchmark_symbol)]
                 final_col_order.append(diff_col)
                 diff_cols.append(diff_col)
             # Add remaining columns for this period (B&H, benchmark)
@@ -2625,7 +2626,7 @@ def render_annual_returns_table(df_results, initial_capital, benchmark_symbol="S
         ret_bh = (end_bh / start_bh) - 1 if start_bh != 0 else 0
         ret_bench = (end_bench / start_bench) - 1 if start_bench is not None and start_bench != 0 else 0
         
-        diff = (ret_strat - ret_bh) * 100
+        diff = (ret_strat - ret_bench) * 100
 
         rows.append({
             'Year': year,
@@ -2691,7 +2692,7 @@ def render_annual_returns_table(df_results, initial_capital, benchmark_symbol="S
         "Cash Bal": st.column_config.TextColumn("Cash Balance"),
         "Cash %": st.column_config.TextColumn("Cash %"),
         "BH Ret": st.column_config.TextColumn("B&H Return"),
-        "Diff": st.column_config.TextColumn("vs B&H", help="Strategy Return minus Buy & Hold Return. Green = outperformed, Red = underperformed."),
+        "Diff": st.column_config.TextColumn(f"vs {benchmark_symbol}", help=f"Strategy Return minus {benchmark_symbol} Return. Green = outperformed, Red = underperformed."),
         "BH Bal": st.column_config.TextColumn("B&H Balance"),
         "Bench Ret": st.column_config.TextColumn(f"{benchmark_symbol} Return"),
         "Bench Bal": st.column_config.TextColumn(f"{benchmark_symbol} Balance"),
