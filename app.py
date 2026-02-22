@@ -7,7 +7,7 @@ from datetime import datetime
 from strategies import STRATEGIES
 from reporting import generate_backtest_report
 
-st.set_page_config(layout="wide", page_title="Strategy Backtester")
+st.set_page_config(layout="wide", page_title="AlphaLab", page_icon="⚗️")
 
 # --- Configuration Persistence ---
 CONFIG_FILE = "strategy_configs.json"
@@ -53,14 +53,14 @@ st.markdown("""
 # =========================================================
 st.sidebar.header("🎯 Navigation")
 nav_selection = st.sidebar.radio(
-    "Go To:", ["📈 Strategy Laboratory", "💼 Live Portfolio Manager"], key="nav_sel"
+    "Go To:", ["📈 Strategy Lab", "💼 Live Portfolio Manager"], key="nav_sel"
 )
 st.sidebar.markdown("---")
 
 # =========================================================
 # SIDEBAR: STRATEGY LAB PANEL
 # =========================================================
-if nav_selection == "📈 Strategy Laboratory":
+if nav_selection == "📈 Strategy Lab":
     st.sidebar.header("Strategy Selection")
     selected_strategy = st.sidebar.selectbox(
         "Select Strategy", list(STRATEGIES.keys()), key="selected_strategy"
@@ -296,12 +296,12 @@ else:
 # =========================================================
 # MAIN CONTENT AREA
 # =========================================================
-if nav_selection == "📈 Strategy Laboratory":
+if nav_selection == "📈 Strategy Lab":
     st.title(f"📈 {selected_strategy}")
     if 'last_result' in st.session_state and st.session_state.last_result is not None:
         generate_backtest_report(st.session_state.last_result)
     else:
-        st.info("### 🧪 Strategy Laboratory\nConfigure parameters in the sidebar and click **Run Backtest** to analyze performance.")
+        st.info("### ⚗️ AlphaLab — Strategy Lab\nConfigure parameters in the sidebar and click **Run Backtest** to analyze performance.")
 
 else:
     st.title("💼 Live Portfolio Manager")
