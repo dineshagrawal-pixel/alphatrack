@@ -14,21 +14,6 @@ from strategies.combined import run_combined_strategy
 
 # Strategy configurations with UI parameters
 STRATEGIES = {
-    "Strategic Alpha Bundle": {
-        "function": run_combined_strategy,
-        "params": [
-            {"name": "symbol_val", "label": "Stock Symbol", "type": "text_input", "default": "TQQQ", "help": "The asset to trade for all sub-strategies (TQQQ recommended)."},
-            {"name": "start_date_val", "label": "Start Date", "type": "date_input", "default": "2010-02-11", "help": "Beginning date for the backtest."},
-            {"name": "end_date", "label": "End Date", "type": "date_input", "default": "today", "help": "Ending date for the backtest."},
-            {"name": "initial_capital_val", "label": "Initial Capital", "type": "number_input", "default": 100000.0, "help": "Starting account balance (split 1/3 each)."},
-            {"name": "side_fund_val", "label": "9-Sig Side Fund", "type": "text_input", "default": "SHY", "help": "The safe asset used by the 9-Sig component."},
-            {"name": "cash_floor_pct", "label": "Shared Cash Floor %", "type": "slider", "min": 0.0, "max": 50.0, "value": 20.0, "step": 1.0, "transform": lambda x: x / 100, "help": "The cash floor maintained by all sub-strategies."},
-            {"name": "cash_yield_apr", "label": "Cash Yield APR (%)", "type": "number_input", "min": 0.0, "value": 0.0, "step": 0.1, "format": "%.2f", "transform": lambda x: x / 100, "help": "Interest earned on cash holdings."},
-            {"name": "benchmark_symbol", "label": "Benchmark Symbol", "type": "text_input", "default": "SPY", "help": "Index used for comparison.", "advanced": True},
-            {"name": "slippage_bps", "label": "Slippage (bps)", "type": "number_input", "min": 0.0, "value": 5.0, "step": 1.0, "help": "Trading slippage.", "advanced": True},
-            {"name": "commission", "label": "Commission ($)", "type": "number_input", "min": 0.0, "value": 0.0, "step": 0.01, "help": "Trade commission.", "advanced": True},
-        ]
-    },
     "Market Breadth Strategy": {
         "function": run_breadth_backtest,
         "params": [
@@ -81,6 +66,21 @@ STRATEGIES = {
             {"name": "benchmark_symbol", "label": "Benchmark Symbol", "type": "text_input", "default": "SPY", "help": "Standard index (e.g., SPY) to compare performance against.", "advanced": True},
             {"name": "slippage_bps", "label": "Slippage (bps)", "type": "number_input", "min": 0.0, "value": 5.0, "step": 1.0, "help": "Trading slippage in basis points (1 bp = 0.01%).", "advanced": True},
             {"name": "commission", "label": "Commission ($)", "type": "number_input", "min": 0.0, "value": 0.0, "step": 0.01, "help": "Fixed dollar cost per trade execution.", "advanced": True},
+        ]
+    },
+    "Strategic Alpha Bundle": {
+        "function": run_combined_strategy,
+        "params": [
+            {"name": "symbol_val", "label": "Stock Symbol", "type": "text_input", "default": "TQQQ", "help": "The asset to trade for all sub-strategies (TQQQ recommended)."},
+            {"name": "start_date_val", "label": "Start Date", "type": "date_input", "default": "2010-02-11", "help": "Beginning date for the backtest."},
+            {"name": "end_date", "label": "End Date", "type": "date_input", "default": "today", "help": "Ending date for the backtest."},
+            {"name": "initial_capital_val", "label": "Initial Capital", "type": "number_input", "default": 100000.0, "help": "Starting account balance (split 1/3 each)."},
+            {"name": "side_fund_val", "label": "9-Sig Side Fund", "type": "text_input", "default": "SHY", "help": "The safe asset used by the 9-Sig component."},
+            {"name": "cash_floor_pct", "label": "Shared Cash Floor %", "type": "slider", "min": 0.0, "max": 50.0, "value": 20.0, "step": 1.0, "transform": lambda x: x / 100, "help": "The cash floor maintained by all sub-strategies."},
+            {"name": "cash_yield_apr", "label": "Cash Yield APR (%)", "type": "number_input", "min": 0.0, "value": 0.0, "step": 0.1, "format": "%.2f", "transform": lambda x: x / 100, "help": "Interest earned on cash holdings."},
+            {"name": "benchmark_symbol", "label": "Benchmark Symbol", "type": "text_input", "default": "SPY", "help": "Index used for comparison.", "advanced": True},
+            {"name": "slippage_bps", "label": "Slippage (bps)", "type": "number_input", "min": 0.0, "value": 5.0, "step": 1.0, "help": "Trading slippage.", "advanced": True},
+            {"name": "commission", "label": "Commission ($)", "type": "number_input", "min": 0.0, "value": 0.0, "step": 0.01, "help": "Trade commission.", "advanced": True},
         ]
     },
     "Moving Average Strategy": {
