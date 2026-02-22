@@ -177,7 +177,11 @@ if nav_selection == "📈 Strategy Lab":
 
     # --- Results Display ---
     if 'last_result' in st.session_state and st.session_state.last_result is not None:
-        generate_backtest_report(st.session_state.last_result)
+        result = st.session_state.last_result
+        if result.strategy_name == "Empty Result":
+            st.error("### ⚠️ Data Download Failed\nYahoo Finance is currently rate-limiting this request (common on shared hosting). Please try again in 5-10 minutes or try a different asset/date range.")
+        else:
+            generate_backtest_report(result)
     else:
         st.info("### 👋 Choose a strategy and profile, then hit Run.")
 

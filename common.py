@@ -9,6 +9,7 @@ import yfinance as yf
 import numpy as np
 import streamlit as st
 from functools import lru_cache
+import requests
 
 
 # ---------------------------------------------------------------------------
@@ -122,77 +123,98 @@ def make_empty_result(
 
 
 
+def get_yf_session():
+    """Create a requests session with a User-Agent to avoid yfinance rate limits."""
+    session = requests.Session()
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    })
+    return session
+
 @st.cache_data(show_spinner=False, ttl=3600)
 def _cached_yf_download(ticker, start_date):
-    """Internal cached downloader to prevent repetitive API calls."""
+    """Internal cached downloader with rate-limit mitigation."""
     try:
-        data = yf.download(ticker, start=start_date, progress=False)
+        t = ticker.upper() if isinstance(ticker, str) else ticker
+        s = pd.to_datetime(start_date).strftime('%Y-%m-%d')
+        # Use session to help with rate limits
+        data = yf.download(t, start=s, progress=False, auto_adjust=True, session=get_yf_session())
         return data
-    except Exception:
+    except Exception as e:
         return pd.DataFrame()
 
 def download_price_data(ticker, start_date, progress=False):
     """
-    Download price data for a given ticker.
-    Uses 'Adj Close' for accurate split/dividend adjusted returns.
+    Download price data with robust MultiIndex handling for single tickers.
     """
     raw = _cached_yf_download(ticker, start_date)
     
     if raw.empty:
         return pd.DataFrame()
     
-    # Handle MultiIndex
-    if isinstance(raw.columns, pd.MultiIndex):
-        raw.columns = raw.columns.get_level_values(0)
+    prices = pd.DataFrame()
     
-    if 'Adj Close' in raw.columns:
-        prices = raw[['Adj Close']].copy()
-        prices.rename(columns={'Adj Close': 'Close'}, inplace=True)
+    # 1. Handle MultiIndex columns (Attribute, Ticker) or (Ticker, Attribute)
+    if isinstance(raw.columns, pd.MultiIndex):
+        # Try to find 'Close' in any level
+        for level in range(raw.columns.nlevels):
+            if 'Close' in raw.columns.get_level_values(level):
+                # We found the level with attributes. Filter for Close.
+                # If there are multiple tickers here (unexpected for this func), we take the first.
+                temp = raw.xs('Close', axis=1, level=level)
+                if isinstance(temp, pd.DataFrame):
+                    prices = temp.iloc[:, 0:1] # Take first ticker
+                else:
+                    prices = temp.to_frame()
+                break
     else:
-        prices = raw[['Close']].copy()
+        # 2. Simple index case
+        if 'Close' in raw.columns:
+            prices = raw[['Close']]
+            
+    if prices.empty:
+        return pd.DataFrame()
         
+    prices.columns = ['Close']
     return prices.dropna()
 
 
 @st.cache_data(show_spinner=False, ttl=3600)
 def _cached_yf_download_multi(tickers, start_date):
-    """Internal cached downloader for multiple tickers."""
+    """Internal cached downloader for multiple tickers with session support."""
     try:
-        # Convert list to tuple for hashability if needed, though streamlit caches handle list
-        data = yf.download(tickers, start=start_date, progress=False)
+        t_list = sorted(tickers) if isinstance(tickers, list) else tickers
+        s = pd.to_datetime(start_date).strftime('%Y-%m-%d')
+        data = yf.download(t_list, start=s, progress=False, auto_adjust=True, session=get_yf_session())
         return data
     except Exception:
         return pd.DataFrame()
 
 def download_multiple_tickers(tickers, start_date, progress=False):
     """
-    Download price data for multiple tickers.
+    Download price data for multiple tickers with robust MultiIndex handling.
     """
     if not tickers:
         return pd.DataFrame()
     
-    # Sort tickers to make cache key consistent
-    sorted_tickers = sorted(tickers) if isinstance(tickers, list) else tickers
-    raw = _cached_yf_download_multi(sorted_tickers, start_date)
+    raw = _cached_yf_download_multi(tickers, start_date)
     
     if raw.empty:
         return pd.DataFrame()
     
-    # Extract only the 'Close' prices. 
-    # For multiple tickers, yfinance returns a MultiIndex [Attribute, Ticker]
+    # For multiple tickers, yf returns [Attribute, Ticker] with auto_adjust=True
     if isinstance(raw.columns, pd.MultiIndex):
-        if 'Close' in raw.columns.levels[0]:
-            prices = raw['Close']
-        elif 'Adj Close' in raw.columns.levels[0]:
-            prices = raw['Adj Close']
-        else:
-            # Fallback
-            prices = raw
+        # Look for 'Close' level
+        for level in range(raw.columns.nlevels):
+            if 'Close' in raw.columns.get_level_values(level):
+                prices = raw.xs('Close', axis=1, level=level)
+                return prices.dropna()
     else:
-        # Single ticker case or already flattened
-        prices = raw[['Close']] if 'Close' in raw.columns else raw
+        # If it returned a single ticker result 
+        if 'Close' in raw.columns:
+            return raw[['Close']].dropna()
     
-    return prices.dropna()
+    return raw.dropna()
 
 
 def merge_with_benchmark(df, benchmark_symbol, start_date):
@@ -228,26 +250,18 @@ def merge_with_benchmark(df, benchmark_symbol, start_date):
 def create_empty_results_df(start_date, initial_capital, benchmark_symbol="SPY"):
     """
     Create an empty results DataFrame with dummy data when no real data is available.
-    
-    Args:
-        start_date: Start date for the DataFrame
-        initial_capital: Initial capital value
-        benchmark_symbol: Benchmark ticker symbol
-        
-    Returns:
-        DataFrame with dummy data
+    Used as an indicator of download failure.
     """
-    dates = pd.date_range(start=start_date, periods=10, freq='D')
+    dates = pd.date_range(end=pd.Timestamp.now(), periods=10, freq='D')
     dummy_data = {
         'Strategy': np.full(10, initial_capital),
         'BH': np.full(10, initial_capital),
         benchmark_symbol: np.full(10, initial_capital),
         'Cash': np.full(10, initial_capital),
-        'close': np.full(10, 100.0)
+        'close': np.full(10, 1.0) # Low placeholder to avoid division errors
     }
     df_results = pd.DataFrame(dummy_data, index=dates)
-    df_results['ret'] = df_results['Strategy'].pct_change().fillna(0)
-    
+    df_results['ret'] = 0.0
     return df_results
 
 
