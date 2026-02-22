@@ -2407,28 +2407,44 @@ def render_interactive_growth_chart(df_results, symbol, benchmark_symbol="SPY"):
             zeroline=True,
             zerolinecolor='black',
             zerolinewidth=1.5,
-            tickformat='.0f'
+            tickformat='.0f',
+            title_font=dict(color='#333333'),
+            tickfont=dict(color='#333333')
         )
 
     # Layout and Styling
     fig.update_layout(
-        title=dict(text=f"Interactive Portfolio Growth: {symbol}", x=0.01, font=dict(size=18)),
+        title=dict(text=f"Interactive Portfolio Growth: {symbol}", x=0.01, font=dict(size=18, color='#333333')),
         yaxis=dict(
             type="log", 
             title="Portfolio Value ($)", 
             gridcolor='#f0f0f0',
             autorange=True,
-            fixedrange=False
+            fixedrange=False,
+            title_font=dict(color='#333333'),
+            tickfont=dict(color='#333333')
         ),
-        xaxis=dict(title="Date", gridcolor='#f0f0f0'),
+        xaxis=dict(
+            title="Date", 
+            gridcolor='#f0f0f0',
+            title_font=dict(color='#333333'),
+            tickfont=dict(color='#333333')
+        ),
         hovermode="x unified",
         dragmode="pan",
         template="plotly_white",
+        plot_bgcolor='white',
+        paper_bgcolor='white',
         # uirevision='constant' keeps zoom/pan within the current slice.
         # Switching period rebuilds the chart (new Streamlit run) with fresh slice.
         uirevision='constant',
         height=700 if has_lower else 550,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        legend=dict(
+            orientation="h", 
+            yanchor="bottom", y=1.02, 
+            xanchor="right", x=1,
+            font=dict(color='#333333')
+        ),
         margin=dict(l=0, r=0, t=100, b=0)
     )
 
