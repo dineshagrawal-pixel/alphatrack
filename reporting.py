@@ -1381,33 +1381,38 @@ def render_trailing_returns(df_results, benchmark_symbol="SPY"):
         # Helper for total return
         def calc_total_ret(start_idx):
             if len(series) >= abs(start_idx):
-                return series.iloc[-1] / series.iloc[start_idx] - 1
+                return (series.iloc[-1] / series.iloc[start_idx] - 1) * 100
             return None
 
         # Helper for annualized return
-        def calc_ann_ret(total_ret, days):
-            if total_ret is not None and days > 0:
+        def calc_ann_ret(total_ret_pct, days):
+            if total_ret_pct is not None and days > 0:
                 years = days / 252
-                return (1 + total_ret) ** (1/years) - 1
+                # total_ret_pct is already * 100, convert back for math
+                total_ret = total_ret_pct / 100
+                return ((1 + total_ret) ** (1/years) - 1) * 100
             return None
 
         # Helper for ann std dev
         def calc_ann_std(rets):
             if len(rets) > 1:
-                return rets.std() * np.sqrt(252)
+                return (rets.std() * np.sqrt(252)) * 100
             return None
 
         # Periods
         # 3 Month (~63 trading days)
         metrics['3 Month TR'] = calc_total_ret(-63)
         
-        # Year To Date
+        # Year To Date (precise: from last close of previous year)
         current_year = full_df.index[-1].year
-        ytd_data = series[series.index.year == current_year]
-        if len(ytd_data) > 0:
-            metrics['YTD TR'] = series.iloc[-1] / series[series.index.year == current_year].iloc[0] - 1
+        prev_year_data = series[series.index.year < current_year]
+        if not prev_year_data.empty:
+            base_p = prev_year_data.iloc[-1]
+            metrics['YTD TR'] = (series.iloc[-1] / base_p - 1) * 100
         else:
-            metrics['YTD TR'] = None
+            # If start of data is in current year, use first price
+            first_p = series[series.index.year == current_year].iloc[0]
+            metrics['YTD TR'] = (series.iloc[-1] / first_p - 1) * 100
             
         # 1 Year
         metrics['1 Year TR'] = calc_total_ret(-252)
@@ -1424,7 +1429,7 @@ def render_trailing_returns(df_results, benchmark_symbol="SPY"):
         total_days = (full_df.index[-1] - full_df.index[0]).days
         years = total_days / 365.25
         tr_full = series.iloc[-1] / series.iloc[0] - 1
-        metrics['Full Ann'] = (1 + tr_full)**(1/years) - 1 if years > 0 else None
+        metrics['Full Ann'] = ((1 + tr_full)**(1/years) - 1) * 100 if years > 0 else None
 
         # Volatility metrics after all returns
         metrics['3 Year Std'] = calc_ann_std(returns_series.iloc[-252*3:]) if len(returns_series) >= 252*3 else None
