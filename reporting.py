@@ -434,39 +434,36 @@ def run_monte_carlo(initial_equity, returns_series, num_simulations, sim_years, 
     return sim_df, mc_results_df
 
 
-def calculate_sharpe_ratio(returns, risk_free_rate=0.0):
-    """Calculate Sharpe Ratio"""
+def calculate_sharpe_ratio(returns, risk_free_rate=0.0, periods=252):
+    """Calculate Sharpe Ratio with flexible frequency"""
     if returns is None or len(returns) < 2:
         return 0.0
     std = returns.std()
     if std == 0 or np.isnan(std):
         return 0.0
+        
     # Annualized return using geometric mean consistency
     total_ret = (1 + returns).prod() - 1
     num_years = (returns.index[-1] - returns.index[0]).days / 365.25
     if num_years <= 0: return 0.0
     ann_return = (1 + total_ret)**(1/num_years) - 1
     
-    annualized_std = std * np.sqrt(252)
+    annualized_std = std * np.sqrt(periods)
     return (ann_return - risk_free_rate) / annualized_std
 
 
-def calculate_sortino_ratio(returns, risk_free_rate=0.0):
-    """Calculate Sortino Ratio"""
+def calculate_sortino_ratio(returns, risk_free_rate=0.0, periods=252):
+    """Calculate Sortino Ratio with flexible frequency"""
     if returns is None or len(returns) < 2:
         return 0.0
     
     downside_returns = returns[returns < 0]
     if len(downside_returns) < 2:
-        # If no downside, use a very small volatility or return high value
-        # Portfolio Visualizer returns N/A or high values here.
-        # We'll calculate it against 0 if there's at least one down day, 
-        # otherwise return a high number to indicate excellence.
         if len(downside_returns) == 0:
             return 100.0 # High value for "infinite" Sortino
-        downside_std = abs(downside_returns.iloc[0]) * np.sqrt(252) # Fallback for 1 down day
+        downside_std = abs(downside_returns.iloc[0]) * np.sqrt(periods) # Fallback for 1 down period
     else:
-        downside_std = downside_returns.std() * np.sqrt(252)
+        downside_std = downside_returns.std() * np.sqrt(periods)
         
     if downside_std == 0 or np.isnan(downside_std):
         return 0.0
@@ -522,13 +519,11 @@ def align_returns(returns, benchmark_returns):
     return returns.loc[common_idx], benchmark_returns.loc[common_idx]
 
 
-def calculate_treynor_ratio(returns, benchmark_returns, risk_free_rate=0.0):
-    """Calculate Treynor Ratio"""
+def calculate_treynor_ratio(returns, benchmark_returns, risk_free_rate=0.0, periods=252):
+    """Calculate Treynor Ratio with flexible frequency"""
     returns, benchmark_returns = align_returns(returns, benchmark_returns)
-    # Additional validation - ensure we have proper arrays
     if len(returns) < 2 or len(benchmark_returns) < 2:
         return 0.0
-    # Convert to numpy arrays if needed
     returns = np.asarray(returns)
     benchmark_returns = np.asarray(benchmark_returns)
     if returns.ndim != 1 or benchmark_returns.ndim != 1:
@@ -540,7 +535,7 @@ def calculate_treynor_ratio(returns, benchmark_returns, risk_free_rate=0.0):
     beta = covariance / benchmark_variance
     if beta == 0:
         return 0.0
-    annualized_return = (1 + returns).prod()**(252/len(returns)) - 1
+    annualized_return = (1 + returns).prod()**(periods/len(returns)) - 1
     return (annualized_return - risk_free_rate) / beta
 
 
@@ -561,13 +556,13 @@ def calculate_beta(returns, benchmark_returns):
     return covariance / benchmark_variance
 
 
-def calculate_alpha(returns, benchmark_returns, risk_free_rate=0.0):
-    """Calculate Alpha (annualized)"""
+def calculate_alpha(returns, benchmark_returns, risk_free_rate=0.0, periods=252):
+    """Calculate Alpha with flexible frequency"""
     returns, benchmark_returns = align_returns(returns, benchmark_returns)
     if len(returns) == 0 or len(benchmark_returns) == 0:
         return 0.0
-    strat_ann = (1 + returns).prod()**(252/len(returns)) - 1
-    bench_ann = (1 + benchmark_returns).prod()**(252/len(benchmark_returns)) - 1
+    strat_ann = (1 + returns).prod()**(periods/len(returns)) - 1
+    bench_ann = (1 + benchmark_returns).prod()**(periods/len(benchmark_returns)) - 1
     beta = calculate_beta(returns, benchmark_returns)
     alpha = strat_ann - (risk_free_rate + beta * (bench_ann - risk_free_rate))
     return alpha
@@ -655,21 +650,21 @@ def calculate_correlation(returns, benchmark_returns):
     return np.corrcoef(returns, benchmark_returns)[0][1]
 
 
-def calculate_information_ratio(returns, benchmark_returns):
-    """Calculate Information Ratio"""
+def calculate_information_ratio(returns, benchmark_returns, periods=252):
+    """Calculate Information Ratio with flexible frequency"""
     returns, benchmark_returns = align_returns(returns, benchmark_returns)
     if len(returns) == 0 or len(benchmark_returns) == 0:
         return 0.0
     active_returns = returns - benchmark_returns
-    tracking_error = active_returns.std() * np.sqrt(252)
+    tracking_error = active_returns.std() * np.sqrt(periods)
     if tracking_error == 0:
         return 0.0
-    annualized_active_return = (1 + active_returns).prod()**(252/len(active_returns)) - 1
+    annualized_active_return = (1 + active_returns).prod()**(periods/len(active_returns)) - 1
     return annualized_active_return / tracking_error
 
 
-def calculate_upside_capture_ratio(returns, benchmark_returns):
-    """Calculate Upside Capture Ratio"""
+def calculate_upside_capture_ratio(returns, benchmark_returns, periods=252):
+    """Calculate Upside Capture Ratio with flexible frequency"""
     returns, benchmark_returns = align_returns(returns, benchmark_returns)
     if len(returns) == 0 or len(benchmark_returns) == 0:
         return 0.0
@@ -680,15 +675,15 @@ def calculate_upside_capture_ratio(returns, benchmark_returns):
     bench_up = benchmark_returns[up_periods]
     if len(strat_up) == 0 or len(bench_up) == 0:
         return 0.0
-    strat_ann = (1 + strat_up).prod()**(252/len(strat_up)) - 1
-    bench_ann = (1 + bench_up).prod()**(252/len(bench_up)) - 1
+    strat_ann = (1 + strat_up).prod()**(periods/len(strat_up)) - 1
+    bench_ann = (1 + bench_up).prod()**(periods/len(bench_up)) - 1
     if bench_ann == 0:
         return 0.0
     return (strat_ann / bench_ann) * 100
 
 
-def calculate_downside_capture_ratio(returns, benchmark_returns):
-    """Calculate Downside Capture Ratio"""
+def calculate_downside_capture_ratio(returns, benchmark_returns, periods=252):
+    """Calculate Downside Capture Ratio with flexible frequency"""
     returns, benchmark_returns = align_returns(returns, benchmark_returns)
     if len(returns) == 0 or len(benchmark_returns) == 0:
         return 0.0
@@ -699,8 +694,8 @@ def calculate_downside_capture_ratio(returns, benchmark_returns):
     bench_down = benchmark_returns[down_periods]
     if len(strat_down) == 0 or len(bench_down) == 0:
         return 0.0
-    strat_ann = (1 + strat_down).prod()**(252/len(strat_down)) - 1
-    bench_ann = (1 + bench_down).prod()**(252/len(bench_down)) - 1
+    strat_ann = (1 + strat_down).prod()**(periods/len(strat_down)) - 1
+    bench_ann = (1 + bench_down).prod()**(periods/len(bench_down)) - 1
     if bench_ann == 0:
         return 0.0
     return (strat_ann / bench_ann) * 100
@@ -1118,11 +1113,16 @@ def calculate_pv_metrics(returns, benchmark_returns, equity_curve):
     Calculate comprehensive portfolio metrics for the comparison table.
     Guarantees a complete dictionary with ALL keys to prevent gaps in tables.
     """
-    # Initialize with absolute zero defaults
+    # Initialize with absolute zero defaults for ALL expected keys
     metrics = {
         'GM_A': 0.0, 'GM_M': 0.0, 'AM_A': 0.0, 'AM_M': 0.0,
-        'SD_A': 0.0, 'SD_M': 0.0, 'MDD': 0.0, 'Sharpe': 0.0, 
-        'Sortino': 0.0, 'GL': 0.0, 'Corr': 0.0, 'Pos': 0, 'Total': 0
+        'SD_A': 0.0, 'SD_M': 0.0, 'DD_M': 0.0, 'MDD': 0.0, 
+        'Corr': 0.0, 'Beta': 0.0, 'Alpha': 0.0, 'R2': 0.0,
+        'Sharpe': 0.0, 'Sortino': 0.0, 'Treynor': 0.0, 'Calmar': 0.0,
+        'M2': 0.0, 'ActiveRet': 0.0, 'TE': 0.0, 'IR': 0.0,
+        'Skew': 0.0, 'Kurt': 0.0, 'VaR_H': 0.0, 'VaR_A': 0.0, 'CVaR': 0.0,
+        'UpCap': 0.0, 'DownCap': 0.0, 'SWR': 0.0, 'PWR': 0.0,
+        'Pos': 0, 'Total': 0, 'GL': 0.0
     }
     
     if equity_curve is None or len(equity_curve) < 1:
@@ -1131,7 +1131,7 @@ def calculate_pv_metrics(returns, benchmark_returns, equity_curve):
     # Sanitize inputs
     returns = returns.fillna(0.0) if returns is not None else pd.Series(dtype=float)
     benchmark_returns = benchmark_returns.fillna(0.0) if benchmark_returns is not None else pd.Series(dtype=float)
-    equity_curve = equity_curve.ffill().fillna(1.0) # Cost basis 1.0 if missing
+    equity_curve = equity_curve.ffill().fillna(1.0) 
     
     # Absolute Returns / CAGR
     try:
@@ -1142,30 +1142,70 @@ def calculate_pv_metrics(returns, benchmark_returns, equity_curve):
     # Monthly Stats (PV Standard)
     try:
         m_rets = (1 + returns).resample('ME').prod() - 1 if not returns.empty else pd.Series([0.0])
+        m_bench = (1 + benchmark_returns).resample('ME').prod() - 1 if not benchmark_returns.empty else pd.Series([0.0])
+        
         metrics['AM_M'] = m_rets.mean()
         metrics['AM_A'] = (1 + metrics['AM_M'])**12 - 1
         metrics['SD_M'] = m_rets.std()
         metrics['SD_A'] = metrics['SD_M'] * np.sqrt(12)
+        
+        # Downside Deviation (monthly)
+        m_downside = m_rets[m_rets < 0]
+        metrics['DD_M'] = m_downside.std() if len(m_downside) > 1 else 0.0
+        
         metrics['GL'] = calculate_gain_loss_ratio(m_rets)
         metrics['Pos'] = int((m_rets > 0).sum())
         metrics['Total'] = len(m_rets)
+        
+        # Skewness and Kurtosis (monthly)
+        metrics['Skew'] = m_rets.skew() if len(m_rets) > 2 else 0.0
+        metrics['Kurt'] = m_rets.kurtosis() if len(m_rets) > 3 else 0.0
+        
+        # Value-at-Risk (monthly)
+        metrics['VaR_H'] = calculate_var_historical(m_rets)
+        metrics['VaR_A'] = calculate_var_analytical(m_rets)
+        metrics['CVaR'] = calculate_cvar(m_rets)
     except: pass
 
     # Risk-Adjusted Ratios & drawdown
-    try: metrics['Sharpe'] = calculate_sharpe_ratio(returns)
-    except: pass
-    try: metrics['Sortino'] = calculate_sortino_ratio(returns)
-    except: pass
-    try:
+    try: 
+        metrics['Sharpe'] = calculate_sharpe_ratio(returns)
+        metrics['Sortino'] = calculate_sortino_ratio(returns)
+        metrics['Calmar'] = calculate_calmar_ratio(equity_curve, equity_curve.iloc[0])
         peak = equity_curve.cummax()
         metrics['MDD'] = (equity_curve / peak - 1).min() if peak.max() > 0 else 0.0
     except: pass
 
-    # Alignment-dependent metrics
+    # Alignment-dependent metrics (Monthly alignment)
     try:
-        aligned_rets, aligned_bench = align_returns(returns, benchmark_returns)
-        if not aligned_rets.empty:
-            metrics['Corr'] = calculate_correlation(aligned_rets, aligned_bench)
+        ma_rets, ma_bench = align_returns(m_rets, m_bench)
+        if not ma_rets.empty:
+            metrics['Corr'] = calculate_correlation(ma_rets, ma_bench)
+            metrics['Beta'] = calculate_beta(ma_rets, ma_bench)
+            metrics['Alpha'] = calculate_alpha(ma_rets, ma_bench, periods=12)
+            metrics['R2'] = calculate_r_squared(ma_rets, ma_bench)
+            metrics['Treynor'] = calculate_treynor_ratio(ma_rets, ma_bench, periods=12)
+            metrics['IR'] = calculate_information_ratio(ma_rets, ma_bench, periods=12)
+            metrics['UpCap'] = calculate_upside_capture_ratio(ma_rets, ma_bench, periods=12)
+            metrics['DownCap'] = calculate_downside_capture_ratio(ma_rets, ma_bench, periods=12)
+            
+            # Active Return and Tracking Error
+            ann_ret = (1 + metrics['GM_A']) - 1
+            ann_bench = (1 + m_bench).prod()**(12/len(m_bench)) - 1 if len(m_bench) > 0 else 0.0
+            metrics['ActiveRet'] = ann_ret - ann_bench
+            
+            active_month_rets = ma_rets - ma_bench
+            metrics['TE'] = active_month_rets.std() * np.sqrt(12)
+            
+            # M2 Measure
+            metrics['M2'] = metrics['Sharpe'] * metrics['SD_A'] + ann_bench
+    except: pass
+
+    # Withdrawal Rates
+    try:
+        swr_pwr = calculate_withdrawal_rates(returns)
+        metrics['SWR'] = swr_pwr.get('SWR', 0.0)
+        metrics['PWR'] = swr_pwr.get('PWR', 0.0)
     except: pass
 
     # Final sanitization Sweep (No NaN/Inf allowed in the dict)
