@@ -984,70 +984,86 @@ def get_all_metrics(ser, pnl_list, initial_cap, returns_series, benchmark_return
     }
 
 
+def render_mobile_metrics_dashboard(perf_df, metrics_dict, benchmark_symbol):
+    """
+    Enhanced Mobile-first metrics display with Heatmaps.
+    Uses sections and color-coding specifically for the Strategy column.
+    """
+    # 1. THE "BIG 4" DASHBOARD (Stylized Metrics)
+    # Streamlit columns stack on mobile.
+    c1, c2, c3, c4 = st.columns(4)
+    
+    # CAGR Card
+    with c1:
+        st.metric("CAGR", metrics_dict.get('CAGR', '0.00%'))
+    # Sharpe Card
+    with c2:
+        st.metric("Sharpe", metrics_dict.get('Sharpe Ratio', '0.00'))
+    # Max Drawdown Card
+    with c3:
+        # Note: Max Drawdown is already a negative string like "-15.20%"
+        st.metric("Max DD", metrics_dict.get('Max Drawdown', '0.00%'))
+    # Win Rate Card
+    with c4:
+        st.metric("Win %", metrics_dict.get('% Profitable', '0.00%'))
+
+    # 2. SECTIONS WITH HEATMAPS
+    # We slice the perf_df (already processed and formatted) into categorical expanders
+    
+    # Define columns to show in mobile (Metric + Comparison)
+    # Filter out 'Metric Description' for mobile to save horizontal space
+    cols_to_show = [c for c in perf_df.columns if c != 'Metric Description']
+    
+    def render_styled_slice(df_slice, title, expanded=False):
+        with st.expander(title, expanded=expanded):
+            # Apply color coding ONLY to strategy column
+            # This makes the strategy's performance "pop" against the clean benchmark columns
+            styled = apply_conditional_styling(df_slice[cols_to_show], only_strategy=True)
+            st.dataframe(styled, use_container_width=True, hide_index=True)
+
+    # 1. Growth & Returns (Rows 0-5: Start, End, Multiple, Cash %, CAGR, Std Dev)
+    render_styled_slice(perf_df.iloc[:6], "📈 Portfolio Growth & Balances", expanded=True)
+    
+    # 2. Risk & Adjusted Returns (Rows 6-11: Best/Worst Year, Max DD, Sharpe, Sortino, G/L)
+    render_styled_slice(perf_df.iloc[6:12], "🛡️ Risk-Adjusted Performance")
+    
+    # 3. Trade Statistics (Rows 12+: Number of Trades, Win %, Profit Factor, Payoff, etc.)
+    render_styled_slice(perf_df.iloc[12:], "⚡ Trade Execution Statistics")
+
+
 def render_performance_overview(metrics_dict, df_results=None, initial_capital=None, benchmark_symbol="SPY", trade_log=None):
-    """Render Performance Overview - Portfolio Visualizer Style (Transposed)"""
+    """Render Performance Overview - Mobile First with heatmap strategy emphasis"""
+    
     if df_results is None or len(df_results) < 2:
         st.warning("Insufficient data for Performance Summary.")
         return
 
-    # 1. Prepare returns and basics
+    # --- 1. PREPARE DATA (Unified for all views) ---
     strat_rets = df_results['ret'].dropna()
     bh_rets = df_results['BH'].pct_change().dropna()
     bench_rets = bh_rets
     if benchmark_symbol in df_results.columns:
         bench_rets = df_results[benchmark_symbol].pct_change().dropna()
 
-    # Get absolute values
     start_val = float(initial_capital) if initial_capital else float(df_results['Strategy'].iloc[0])
     start_balance_str = f"${start_val:,.0f}"
 
-    # 2. Comprehensive Metric Calculation for all three columns
+    # Calculate PV-style metrics for all three columns
     s_m = calculate_pv_metrics(strat_rets, bench_rets, df_results['Strategy'])
     b_m = calculate_pv_metrics(bh_rets, bench_rets, df_results['BH'])
     m_m = calculate_pv_metrics(bench_rets, bench_rets, df_results[benchmark_symbol] if benchmark_symbol in df_results.columns else df_results['BH'])
 
-    # Trade Specific Stats (Strategy only)
-    t_count, t_win_pct, t_loss_pct = "N/A", "N/A", "N/A"
-    t_days_win, t_days_loss = "N/A", "N/A"
-    
-    if trade_log is not None and not trade_log.empty:
-        closed = trade_log[trade_log['Status'] == 'CLOSED'].copy()
-        t_count = str(len(trade_log))
-        if not closed.empty:
-            wins = closed[closed['Profit %'] > 0]
-            losses = closed[closed['Profit %'] <= 0]
-            if len(wins) > 0:
-                t_win_pct = f"{wins['Profit %'].mean():.2f}%"
-                w_dur = (pd.to_datetime(wins['Exit Date']) - pd.to_datetime(wins['Entry Date'])).dt.days
-                t_days_win = f"{w_dur.mean():.1f}"
-            if len(losses) > 0:
-                t_loss_pct = f"{losses['Profit %'].mean():.2f}%"
-                l_dur = (pd.to_datetime(losses['Exit Date']) - pd.to_datetime(losses['Entry Date'])).dt.days
-                t_days_loss = f"{l_dur.mean():.1f}"
-
-    # Helper formatting
+    # Helper formatters
     def fmt_pct(val):
-        try:
-            if val is None or (isinstance(val, (float, np.float64)) and (np.isinf(val) or np.isnan(val))):
-                return "0.00%"
-            return f"{float(val)*100:.2f}%"
-        except:
-            return "0.00%"
-
+        try: return f"{float(val)*100:.2f}%" if not (np.isinf(val) or np.isnan(val)) else "0.00%"
+        except: return "0.00%"
     def fmt_num(val):
-        try:
-            if val is None or (isinstance(val, (float, np.float64)) and (np.isinf(val) or np.isnan(val))):
-                return "0.00"
-            return f"{float(val):.2f}"
-        except:
-            return "0.00"
-
-    # Best/Worst Year Calculation (Daily and resampled)
+        try: return f"{float(val):.2f}" if not (np.isinf(val) or np.isnan(val)) else "0.00"
+        except: return "0.00"
     def get_best_worst(series):
         try:
             ann = series.resample('YE').last().pct_change().dropna()
-            if len(ann) > 0:
-                return f"{ann.max()*100:.2f}%", f"{ann.min()*100:.2f}%"
+            if len(ann) > 0: return f"{ann.max()*100:.2f}%", f"{ann.min()*100:.2f}%"
         except: pass
         return 'N/A', 'N/A'
 
@@ -1055,69 +1071,45 @@ def render_performance_overview(metrics_dict, df_results=None, initial_capital=N
     b_best, b_worst = get_best_worst(df_results['BH'])
     m_best, m_worst = get_best_worst(df_results[benchmark_symbol] if benchmark_symbol in df_results.columns else df_results['BH'])
 
-    # Cash Balance %
-    def get_cash_pct(total_ser, cash_ser=None):
-        if cash_ser is not None and len(cash_ser) > 0:
-            return f"{(cash_ser.iloc[-1] / total_ser.iloc[-1])*100:.2f}%"
-        return "0.00%"
-
-    s_cash = get_cash_pct(df_results['Strategy'], df_results.get('Cash'))
-
-    # Build the transposed structure
     bench_name = benchmark_symbol
     if benchmark_symbol == "SPY": bench_name = "SPDR S&P 500 ETF (SPY)"
     elif benchmark_symbol == "QQQ": bench_name = "Invesco QQQ Trust (QQQ)"
 
-    def fmt_bal_only(val):
-        if val is None: return "N/A"
-        return f"${float(val):,.0f}"
-    
-    def fmt_multiple(val, start):
-        if val is None or start == 0: return "N/A"
-        return f"{(float(val) / float(start)):.2f}x"
-
+    # Build full metric rows matching the style of Portfolio Visualizer
     metrics_rows = [
-        ("Start Balance", start_balance_str, start_balance_str, start_balance_str, "Initial value of the portfolio at the beginning of the backtest."),
-        ("Ending Balance", 
-            fmt_bal_only(df_results['Strategy'].iloc[-1]), 
-            fmt_bal_only(df_results['BH'].iloc[-1]), 
-            fmt_bal_only(df_results[benchmark_symbol].iloc[-1]) if benchmark_symbol in df_results.columns else "N/A", 
-            METRIC_DEFINITIONS.get("Ending Balance", "Final value of the portfolio.")),
-        ("Equity Multiple",
-            fmt_multiple(df_results['Strategy'].iloc[-1], start_val),
-            fmt_multiple(df_results['BH'].iloc[-1], start_val),
-            fmt_multiple(df_results[benchmark_symbol].iloc[-1], start_val) if benchmark_symbol in df_results.columns else "N/A",
-            "Total growth multiple of initial capital (End / Start)."),
-        ("Cash Balance %", s_cash, "0.00%", "0.00%", "Percentage of final portfolio value held in cash/side-fund."),
-        ("CAGR", fmt_pct(s_m.get('GM_A')), fmt_pct(b_m.get('GM_A')), fmt_pct(m_m.get('GM_A')), METRIC_DEFINITIONS.get("CAGR", "Compound Annual Growth Rate.")),
-        ("Std Dev", fmt_pct(s_m.get('SD_A')), fmt_pct(b_m.get('SD_A')), fmt_pct(m_m.get('SD_A')), METRIC_DEFINITIONS.get("Standard Deviation", "Annualized Standard Deviation.")),
-        ("Best Year", s_best, b_best, m_best, METRIC_DEFINITIONS.get("Best Year", "Single best calendar year return.")),
-        ("Worst Year", s_worst, b_worst, m_worst, METRIC_DEFINITIONS.get("Worst Year", "Single worst calendar year return.")),
-        ("Max Drawdown", fmt_pct(s_m.get('MDD')), fmt_pct(b_m.get('MDD')), fmt_pct(m_m.get('MDD')), METRIC_DEFINITIONS.get("Max Drawdown", "Maximum peak-to-trough decline.")),
-        ("Sharpe Ratio", fmt_num(s_m.get('Sharpe')), fmt_num(b_m.get('Sharpe')), fmt_num(m_m.get('Sharpe')), METRIC_DEFINITIONS.get("Sharpe Ratio", "Risk-adjusted return.")),
-        ("Sortino Ratio", fmt_num(s_m.get('Sortino')), fmt_num(b_m.get('Sortino')), fmt_num(m_m.get('Sortino')), METRIC_DEFINITIONS.get("Sortino Ratio", "Downside risk-adjusted return.")),
-        ("Avg Monthly Gain/Loss Ratio", fmt_num(s_m.get('GL')), fmt_num(b_m.get('GL')), fmt_num(m_m.get('GL')), "Average monthly % gain divided by average monthly % loss."),
-        ("Number of Trades", t_count, "1 (B&H)", "N/A", "Total number of completed and open trades."),
-        ("Avg Winning Trade %", t_win_pct, "N/A", "N/A", "Arithmetic average return of all winning trades."),
-        ("Avg Losing Trade %", t_loss_pct, "N/A", "N/A", "Arithmetic average return of all losing trades."),
-        ("Avg Days in Winning Trade", t_days_win, "N/A", "N/A", "Average holding period for profitable trades."),
-        ("Avg Days in Losing Trade", t_days_loss, "N/A", "N/A", "Average holding period for losing trades."),
-        ("Win Rate %", metrics_dict.get('% Profitable', "N/A"), "N/A", "N/A", "The percentage of all trades that were profitable."),
-        ("Profit Factor", str(metrics_dict.get('Profit Factor')) if metrics_dict.get('Profit Factor') else "0.00", "N/A", "N/A", "Gross Profit / Gross Loss."),
+        ("Start Balance", start_balance_str, start_balance_str, start_balance_str, "Initial value of the portfolio."),
+        ("Ending Balance", f"${df_results['Strategy'].iloc[-1]:,.0f}", f"${df_results['BH'].iloc[-1]:,.0f}", f"${df_results[benchmark_symbol].iloc[-1]:,.0f}" if benchmark_symbol in df_results.columns else "N/A", "Final portfolio value."),
+        ("Equity Multiple", f"{(df_results['Strategy'].iloc[-1] / start_val):.2f}x", f"{(df_results['BH'].iloc[-1] / start_val):.2f}x", f"{(df_results[benchmark_symbol].iloc[-1] / start_val):.2f}x" if benchmark_symbol in df_results.columns else "N/A", "Total growth multiple."),
+        ("Cash Balance %", f"{(df_results.get('Cash', pd.Series([0])).iloc[-1] / df_results['Strategy'].iloc[-1])*100:.2f}%", "0.00%", "0.00%", "Percentage of value currently in cash."),
+        ("CAGR", fmt_pct(s_m.get('GM_A')), fmt_pct(b_m.get('GM_A')), fmt_pct(m_m.get('GM_A')), "Compound Annual Growth Rate."),
+        ("Std Dev", fmt_pct(s_m.get('SD_A')), fmt_pct(b_m.get('SD_A')), fmt_pct(m_m.get('SD_A')), "Annualized Volatility."),
+        ("Best Year", s_best, b_best, m_best, "Highest calendar year return."),
+        ("Worst Year", s_worst, b_worst, m_worst, "Lowest calendar year return."),
+        ("Max Drawdown", fmt_pct(s_m.get('MDD')), fmt_pct(b_m.get('MDD')), fmt_pct(m_m.get('MDD')), "Maximum peak-to-trough decline."),
+        ("Sharpe Ratio", fmt_num(s_m.get('Sharpe')), fmt_num(b_m.get('Sharpe')), fmt_num(m_m.get('Sharpe')), "Risk-adjusted return."),
+        ("Sortino Ratio", fmt_num(s_m.get('Sortino')), fmt_num(b_m.get('Sortino')), fmt_num(m_m.get('Sortino')), "Downside-only risk-adjusted return."),
+        ("Avg Monthly G/L", fmt_num(s_m.get('GL')), fmt_num(b_m.get('GL')), fmt_num(m_m.get('GL')), "Average monthly gain vs average monthly loss."),
+        ("Number of Trades", str(metrics_dict.get('Total Trades', 'N/A')), "1 (B&H)", "N/A", "Total trade count."),
+        ("Win Rate %", metrics_dict.get('% Profitable', "N/A"), "N/A", "N/A", "Percentage of profitable trades."),
+        ("Profit Factor", str(metrics_dict.get('Profit Factor', '0.00')), "N/A", "N/A", "Gross Profit / Gross Loss."),
         ("Payoff Ratio", str(metrics_dict.get('Payoff Ratio', "N/A")), "N/A", "N/A", "Average Win / Average Loss."),
+        ("Expectancy", str(metrics_dict.get('Expectancy Per Trade', 'N/A')), "N/A", "N/A", "Expected profit per trade."),
     ]
 
     perf_df = pd.DataFrame(metrics_rows, columns=['Metric', 'Strategy', 'Buy & Hold Portfolio', bench_name, 'Metric Description'])
 
-    # Calculate height to remove scrollbar (approx 35px per row + 38px for header + padding)
-    calculated_height = (len(metrics_rows) + 1) * 35 + 2
+    # --- 2. RENDER THE VIEWS ---
+    
+    st.subheader("Performance Snapshot")
+    render_mobile_metrics_dashboard(perf_df, metrics_dict, benchmark_symbol)
+    
+    st.markdown("---")
+    with st.expander("📊 Full Side-by-Side Comparison (Desktop View)", expanded=False):
+        # Desktop view renders heatmaps for EVERYTHING to allow deep comparison
+        full_styled = apply_conditional_styling(perf_df, only_strategy=False)
+        st.dataframe(full_styled, use_container_width=True, hide_index=True)
 
-    st.dataframe(
-        apply_conditional_styling(perf_df), 
-        use_container_width=True, 
-        hide_index=True,
-        height=calculated_height
-    )
+
 
 
 
@@ -2911,146 +2903,169 @@ def render_last_trade_status(trade_log, df_results):
 
 
 
-def generate_backtest_report(
-result: BacktestResult):
+def generate_backtest_report(result: BacktestResult):
     """
-    Generate the complete backtest report for any strategy.
-
-    Accepts a BacktestResult dataclass (returned by every strategy via
-    build_strategy_result / make_empty_result in common.py).  All render
-    functions pull standardised column names from df_results:
-        Strategy, BH, <benchmark_symbol>, Cash, close, ret
+    Generate the complete backtest report - Mobile First Design.
+    Reorganized into logical tabs for easy navigation on small screens.
     """
-    df_results         = result.df_results
-    trade_list_results = result.pnl_list
-    trade_log_results  = result.trade_log.to_dict('records') if not result.trade_log.empty else []
-    initial_capital    = result.initial_capital
-    symbol             = result.symbol
-    benchmark_symbol   = result.benchmark_symbol
+    df_results = result.df_results
+    trade_log_results = result.trade_log.to_dict('records') if not result.trade_log.empty else []
+    initial_capital = result.initial_capital
+    symbol = result.symbol
+    benchmark_symbol = result.benchmark_symbol
 
-    benchmark_returns = df_results['BH'].pct_change().dropna()
-    strategy_returns  = df_results['ret'].dropna()
-
-    # Use the dedicated benchmark equity curve when available
-    benchmark_strategy_returns = None
-    if benchmark_symbol in df_results.columns:
-        benchmark_strategy_returns = df_results[benchmark_symbol].pct_change().dropna()
-
-    # Filter for strategic trades only for performance summary & dashboard
+    # 1. PRE-COMPUTE DATA
     from common import calculate_pnl_from_trades
     strategic_trade_log = [t for t in trade_log_results if t.get('Status') != 'FLOOR REFILL']
     s_pnl_list, s_pnl_pct_list = calculate_pnl_from_trades(strategic_trade_log)
 
+    strategy_returns = df_results['ret'].dropna()
+    benchmark_returns = df_results['BH'].pct_change().dropna()
+    benchmark_strategy_returns = df_results[benchmark_symbol].pct_change().dropna() if benchmark_symbol in df_results.columns else None
+
     metrics_dict = get_all_metrics(
-        df_results['Strategy'],
-        s_pnl_list,
-        initial_capital,
-        strategy_returns,
-        benchmark_returns,
-        benchmark_strategy_returns,
+        df_results['Strategy'], s_pnl_list, initial_capital,
+        strategy_returns, benchmark_returns, benchmark_strategy_returns,
         pnl_pct_list=s_pnl_pct_list
     )
 
-    # Pre-compute annual summary (used by some future extensions)
-    annual = df_results.resample('YE').last()
-    annual['1Y_Ret'] = annual['Strategy'].pct_change()
-    if 'close' in annual.columns:
-        annual['Price_Pct_Chg'] = annual['close'].pct_change()
+    # Pre-calculate the comparison dataframe once (shared between views)
+    strat_rets = strategy_returns
+    bh_rets = benchmark_returns
+    bench_rets = benchmark_strategy_returns if benchmark_strategy_returns is not None else bh_rets
+    
+    start_val = float(initial_capital)
+    start_balance_str = f"${start_val:,.0f}"
 
-    # Create Tabs for a cleaner interface
-    tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "🔍 Detailed Analysis", "📜 Trade Log"])
+    s_m = calculate_pv_metrics(strat_rets, bench_rets, df_results['Strategy'])
+    b_m = calculate_pv_metrics(bh_rets, bench_rets, df_results['BH'])
+    m_m = calculate_pv_metrics(bench_rets, bench_rets, df_results[benchmark_symbol] if benchmark_symbol in df_results.columns else df_results['BH'])
 
-    with tab1:
-        # Dashboard: Quick Overview & Key Charts
-        st.header("Strategy Dashboard")
+    def fmt_pct(val):
+        try: return f"{float(val)*100:.2f}%" if not (np.isinf(val) or np.isnan(val)) else "0.00%"
+        except: return "0.00%"
+    def fmt_num(val):
+        try: return f"{float(val):.2f}" if not (np.isinf(val) or np.isnan(val)) else "0.00"
+        except: return "0.00"
+    def get_best_worst(series):
+        try:
+            ann = series.resample('YE').last().pct_change().dropna()
+            if len(ann) > 0: return f"{ann.max()*100:.2f}%", f"{ann.min()*100:.2f}%"
+        except: pass
+        return 'N/A', 'N/A'
+
+    s_best, s_worst = get_best_worst(df_results['Strategy'])
+    b_best, b_worst = get_best_worst(df_results['BH'])
+    m_best, m_worst = get_best_worst(df_results[benchmark_symbol] if benchmark_symbol in df_results.columns else df_results['BH'])
+
+    bench_name = benchmark_symbol
+    if benchmark_symbol == "SPY": bench_name = "SPDR S&P 500 ETF (SPY)"
+    elif benchmark_symbol == "QQQ": bench_name = "Invesco QQQ Trust (QQQ)"
+
+    metrics_rows = [
+        ("Start Balance", start_balance_str, start_balance_str, start_balance_str, "Initial value of the portfolio."),
+        ("Ending Balance", f"${df_results['Strategy'].iloc[-1]:,.0f}", f"${df_results['BH'].iloc[-1]:,.0f}", f"${df_results[benchmark_symbol].iloc[-1]:,.0f}" if benchmark_symbol in df_results.columns else "N/A", "Final portfolio value."),
+        ("Equity Multiple", f"{(df_results['Strategy'].iloc[-1] / start_val):.2f}x", f"{(df_results['BH'].iloc[-1] / start_val):.2f}x", f"{(df_results[benchmark_symbol].iloc[-1] / start_val):.2f}x" if benchmark_symbol in df_results.columns else "N/A", "Total growth multiple."),
+        ("Cash Balance %", f"{(df_results.get('Cash', pd.Series([0])).iloc[-1] / df_results['Strategy'].iloc[-1])*100:.2f}%", "0.00%", "0.00%", "Percentage of value currently in cash."),
+        ("CAGR", fmt_pct(s_m.get('GM_A')), fmt_pct(b_m.get('GM_A')), fmt_pct(m_m.get('GM_A')), "Compound Annual Growth Rate."),
+        ("Std Dev", fmt_pct(s_m.get('SD_A')), fmt_pct(b_m.get('SD_A')), fmt_pct(m_m.get('SD_A')), "Annualized Volatility."),
+        ("Best Year", s_best, b_best, m_best, "Highest calendar year return."),
+        ("Worst Year", s_worst, b_worst, m_worst, "Lowest calendar year return."),
+        ("Max Drawdown", fmt_pct(s_m.get('MDD')), fmt_pct(b_m.get('MDD')), fmt_pct(m_m.get('MDD')), "Maximum peak-to-trough decline."),
+        ("Sharpe Ratio", fmt_num(s_m.get('Sharpe')), fmt_num(b_m.get('Sharpe')), fmt_num(m_m.get('Sharpe')), "Risk-adjusted return."),
+        ("Sortino Ratio", fmt_num(s_m.get('Sortino')), fmt_num(b_m.get('Sortino')), fmt_num(m_m.get('Sortino')), "Downside-only risk-adjusted return."),
+        ("Avg Monthly G/L", fmt_num(s_m.get('GL')), fmt_num(b_m.get('GL')), fmt_num(m_m.get('GL')), "Average monthly gain vs average monthly loss."),
+        ("Number of Trades", str(metrics_dict.get('Total Trades', 'N/A')), "1 (B&H)", "N/A", "Total trade count."),
+        ("Win Rate %", metrics_dict.get('% Profitable', "N/A"), "N/A", "N/A", "Percentage of profitable trades."),
+        ("Profit Factor", str(metrics_dict.get('Profit Factor', '0.00')), "N/A", "N/A", "Gross Profit / Gross Loss."),
+        ("Payoff Ratio", str(metrics_dict.get('Payoff Ratio', "N/A")), "N/A", "N/A", "Average Win / Average Loss."),
+        ("Expectancy", str(metrics_dict.get('Expectancy Per Trade', 'N/A')), "N/A", "N/A", "Expected profit per trade."),
+    ]
+    perf_df = pd.DataFrame(metrics_rows, columns=['Metric', 'Strategy', 'Buy & Hold Portfolio', bench_name, 'Metric Description'])
+
+    # 2. RENDER TOP-LEVEL TABS (Mobile Friendly)
+    tabs = st.tabs(["📊 Summary", "📅 Returns", "🛡️ Risk", "⚡ Trading", "🧪 Deep Dive"])
+
+    with tabs[0]: # SUMMARY
+        st.caption(f"Asset: **{symbol}** | Benchmark: **{benchmark_symbol}**")
         render_last_trade_status(strategic_trade_log, df_results)
         
-        st.subheader("Performance Summary", help=get_metric_help("Performance Summary"))
-        render_performance_overview(metrics_dict, df_results, initial_capital, benchmark_symbol, pd.DataFrame(strategic_trade_log))
+        # High level cards and categorical heatmaps
+        render_mobile_metrics_dashboard(perf_df, metrics_dict, benchmark_symbol)
         
-        st.subheader("Portfolio Growth", help="Visual representation of the cumulative growth over time on a log scale.")
-        render_portfolio_growth_chart(df_results, benchmark_symbol)
+        # Quick Growth Chart (Responsive)
+        st.subheader("Interactive Growth Chart")
+        # Optimization: use slightly lower height for mobile viewport compatibility
         render_interactive_growth_chart(df_results, symbol, benchmark_symbol)
         
-        st.subheader("Annual Returns", help=get_metric_help("Performance Summary"))
+        st.markdown("---")
+        with st.expander("🔍 View Full Desktop Comparison Table"):
+            full_styled = apply_conditional_styling(perf_df, only_strategy=False)
+            st.dataframe(full_styled, use_container_width=True, hide_index=True)
+
+    with tabs[1]: # RETURNS ANALYSIS
+        st.subheader("Annual & Periodic Returns")
         render_annual_returns(df_results, initial_capital, benchmark_symbol)
-
-    with tab2:
-        # Detailed Analysis: In-depth metrics and specific breakdowns
-        st.header("Detailed Analysis")
-        
-        st.subheader("Trailing Returns")
-        render_trailing_returns(df_results, benchmark_symbol)
-        
-        st.subheader("Risk and Return Metrics", help=get_metric_help("Risk and Return"))
-        render_risk_adjusted_returns(metrics_dict, df_results, benchmark_symbol)
-            
-        st.subheader("Return vs. Volatility Comparison")
-        render_risk_return_scatter(metrics_dict, df_results, benchmark_symbol)
-
-        st.subheader("Monthly Returns", help="Grid view of returns by month and year.")
-        render_monthly_returns_heatmap(df_results)
-        
-        # Determine Cash Floor pivot for heatmap
-        # Check various names used across strategies
-        p = result.params
-        floor_val = p.get('cash_floor_pct', p.get('cash_floor_pct_val', p.get('cash_floor_hwm_pct', 0.20)))
-        # Convert to percentage 0-100 if it was passed as decimal
-        if floor_val <= 1.0: floor_val *= 100
-        
-        st.subheader("Monthly Cash % Allocation", help="Cash percentage at the end of each month.")
-        render_monthly_cash_heatmap(df_results, cash_floor_pct=floor_val)
-        
-        st.subheader("Monthly Portfolio Maintenance", help="Portfolio Value | Monthly HWM | Cash. Color-coded by drawdown status (Strat/HWM).")
-        render_portfolio_hwm_heatmap(df_results)
-        
-        st.subheader("Annual Returns Table")
         render_annual_returns_table(df_results, initial_capital, benchmark_symbol)
         
-        st.subheader("Rolling Analysis", help=get_metric_help("Rolling"))
-        render_rolling_returns_analysis(df_results, benchmark_symbol)
-        render_rolling_correlation(df_results, benchmark_symbol)
+        st.markdown("---")
+        st.subheader("Monthly Returns Heatmap")
+        render_monthly_returns_heatmap(df_results)
         
-        st.subheader("Drawdown Analysis", help="Detailed list of the worst peak-to-trough declines.")
-        render_drawdown_analysis(df_results)
-        render_underwater_chart(df_results, benchmark_symbol)
-        
-        st.subheader("Allocation Changes", help="Visualizes movement between market and cash.")
-        render_allocation_changes(df_results)
-        
-        st.subheader("Market Stress Analysis", help="Historical context for deeper comparison.")
-        render_market_stress_analysis(df_results, benchmark_symbol)
-        
-        st.subheader("Risk Management", help=get_metric_help("Management"))
-        render_risk_management_performance(df_results)
-        
-        st.subheader("Monte Carlo Simulation", help=get_metric_help("Stress Testing"))
-        mc_sim_df, mc_results = run_monte_carlo(
-            initial_capital, strategy_returns, num_simulations=200, sim_years=10
-        )
-        render_monte_carlo_simulation(mc_results, mc_sim_df, initial_capital, 200)
+        st.markdown("---")
+        st.subheader("Trailing Returns")
+        render_trailing_returns(df_results, benchmark_symbol)
 
-    with tab3:
-        # Trade Log: Transactional details and trade-specific statistics
-        st.header("Trade Log & Execution")
+    with tabs[2]: # RISK & VOLATILITY
+        st.subheader("Drawdown Analysis")
+        render_underwater_chart(df_results, benchmark_symbol)
+        render_drawdown_analysis(df_results)
         
-        st.subheader("Trade Statistics", help=get_metric_help("Trading Performance"))
+        st.markdown("---")
+        st.subheader("Risk-Adjusted Metrics")
+        render_risk_adjusted_returns(metrics_dict, df_results, benchmark_symbol)
+        render_risk_return_scatter(metrics_dict, df_results, benchmark_symbol)
+        
+        st.markdown("---")
+        st.subheader("Allocation & Stability")
+        render_allocation_changes(df_results)
+        render_rolling_correlation(df_results, benchmark_symbol)
+
+    with tabs[3]: # TRADING LOGS
+        st.subheader("Execution Statistics")
         render_trade_statistics(df_results, strategic_trade_log, initial_capital)
         
-        st.subheader("Transaction History", help="Main strategic buy and sell signals.")
-        standard_trades = [t for t in trade_log_results if t.get('Status') != 'FLOOR REFILL']
-        render_trade_log(standard_trades)
+        st.markdown("---")
+        st.subheader("Transaction Log")
+        render_trade_log(strategic_trade_log)
         
-        st.subheader("Cash Floor Maintenance Log", help="Automatic refills to maintain the 20% cash floor.")
-        refill_trades = [t for t in trade_log_results if t.get('Status') == 'FLOOR REFILL']
-        if refill_trades:
-            render_trade_log(refill_trades)
-        else:
-            st.info("No Cash Floor refills were required during this period.")
+        with st.expander("🛠️ Show Maintenance/Rebalance Log"):
+            refills = [t for t in trade_log_results if t.get('Status') == 'FLOOR REFILL']
+            if refills: render_trade_log(refills)
+            else: st.info("No maintenance trades recorded.")
+
+    with tabs[4]: # DEEP DIVE / ADVANCED
+        st.subheader("Advanced Analytical Deep-Dive")
         
-        st.subheader("Discipline & Stability")
-        render_survival_discipline(df_results, s_pnl_list, strategic_trade_log)
-        render_stability_check(s_pnl_list, df_results)
+        p = result.params
+        floor_val = p.get('cash_floor_pct', p.get('cash_floor_pct_val', 0.20))
+        if floor_val <= 1.0: floor_val *= 100
+        
+        with st.expander("📦 Cash & HWM Analysis", expanded=True):
+            render_monthly_cash_heatmap(df_results, cash_floor_pct=floor_val)
+            render_portfolio_hwm_heatmap(df_results)
+            
+        with st.expander("📉 Market Stress Performance"):
+            render_market_stress_analysis(df_results, benchmark_symbol)
+            render_risk_management_performance(df_results)
+            
+        with st.expander("🎲 Monte Carlo Stress Testing"):
+            mc_sim_df, mc_results = run_monte_carlo(initial_capital, strategy_returns, 200, 10)
+            render_monte_carlo_simulation(mc_results, mc_sim_df, initial_capital, 200)
+            
+        with st.expander("⚖️ Survival & Discipline"):
+            render_survival_discipline(df_results, s_pnl_list, strategic_trade_log)
+            render_stability_check(s_pnl_list, df_results)
 
 
 def generate_backtest_report_compat(
