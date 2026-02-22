@@ -1468,8 +1468,19 @@ def render_trailing_returns(df_results, benchmark_symbol="SPY"):
     # Symmetric scale for returns, centered at 0
     # Collect only return-based values for the global scale calculation
     ret_cols = [c for c in trailing_df.columns if 'TR' in c or 'Ann' in c]
+    
+    # Force numeric conversion for safety
+    for col in ret_cols:
+        trailing_df[col] = pd.to_numeric(trailing_df[col], errors='coerce')
+        
     subset_data = trailing_df.loc[strat_idx, ret_cols]
-    vmax = subset_data.abs().max().max()
+    try:
+        # Use numpy for safe vmax calculation
+        valid_values = subset_data.values.flatten().astype(float)
+        vmax = np.nanmax(np.abs(valid_values))
+    except (ValueError, TypeError):
+        vmax = 0.1
+        
     if pd.isna(vmax) or vmax == 0: vmax = 0.1
     
     styler = trailing_df.style.hide(axis='index')
@@ -1505,7 +1516,12 @@ def render_trailing_returns(df_results, benchmark_symbol="SPY"):
             column_config[k] = st.column_config.TextColumn(v, help=METRIC_DEFINITIONS.get(k, v))
 
     st.dataframe(styler, use_container_width=True, column_config=column_config)
-    st.caption(f"Trailing return and volatility are as of {df_results.index[-1].strftime('%B %Y')}")
+    try:
+        last_date = df_results.index[-1]
+        date_str = last_date.strftime('%B %Y') if hasattr(last_date, 'strftime') else str(last_date)[:7]
+        st.caption(f"Trailing return and volatility are as of {date_str}")
+    except:
+        pass
 
 
 
@@ -1589,7 +1605,12 @@ def render_drawdown_analysis(df_results):
             "Length": st.column_config.TextColumn("Decline Length", help="Total months from peak to trough."),
         }
         
-        vmax = dd_df['Drawdown'].abs().max()
+        try:
+            dd_vals = pd.to_numeric(dd_df['Drawdown'], errors='coerce').dropna().values
+            vmax = np.nanmax(np.abs(dd_vals)) if len(dd_vals) > 0 else 10.0
+        except:
+            vmax = 10.0
+            
         if pd.isna(vmax) or vmax == 0: vmax = 10.0
         
         styler = dd_df.style.hide(axis='index')
@@ -1820,7 +1841,13 @@ def render_monthly_returns_heatmap(df_results):
                               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][:len(monthly_pivot.columns)]
     
     # Calculate max absolute value for symmetric color scale centered at 0
-    vmax = monthly_pivot.unstack().abs().max()
+    try:
+        # unstack() to 1D, drop NaNs, then compute abs max
+        vals = monthly_pivot.unstack().dropna().values.astype(float)
+        vmax = np.nanmax(np.abs(vals)) if len(vals) > 0 else 1.0
+    except:
+        vmax = 1.0
+        
     if pd.isna(vmax) or vmax == 0:
         vmax = 1.0
         
@@ -2621,10 +2648,17 @@ def render_annual_returns_table(df_results, initial_capital, benchmark_symbol="S
     df_table = df_table[[c for c in col_order if c in df_table.columns]]
     
     # Calculate scale for Strategy Returns (symmetric around 0)
-    vmax = df_table['Strat Ret'].abs().max()
-    if pd.isna(vmax) or vmax == 0: vmax = 10.0
+    try:
+        s_ret_vals = pd.to_numeric(df_table['Strat Ret'], errors='coerce').dropna().values
+        vmax = np.nanmax(np.abs(s_ret_vals)) if len(s_ret_vals) > 0 else 10.0
+        
+        diff_vals = pd.to_numeric(df_table['Diff'], errors='coerce').dropna().values
+        diff_vmax = np.nanmax(np.abs(diff_vals)) if len(diff_vals) > 0 else 5.0
+    except:
+        vmax = 10.0
+        diff_vmax = 5.0
 
-    diff_vmax = df_table['Diff'].abs().max()
+    if pd.isna(vmax) or vmax == 0: vmax = 10.0
     if pd.isna(diff_vmax) or diff_vmax == 0: diff_vmax = 5.0
 
     styler = df_table.style.hide(axis='index')
