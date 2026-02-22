@@ -8,6 +8,7 @@ from strategies.volatility import run_volatility_strategy
 from strategies.ninesig import run_9sig_strategy as run_9sig_strategy
 from strategies.moving_average import run_moving_average_strategy
 from strategies.dual_momentum import run_dual_momentum_strategy
+from strategies.volatility_vix import run_volatility_vix_strategy
 
 
 # Strategy configurations with UI parameters
@@ -98,6 +99,23 @@ STRATEGIES = {
             {"name": "slippage_bps", "label": "Slippage (bps)", "type": "number_input", "min": 0.0, "value": 5.0, "step": 1.0, "help": "Trading slippage in basis points.", "advanced": True},
             {"name": "commission", "label": "Commission ($)", "type": "number_input", "min": 0.0, "value": 0.0, "step": 0.01, "help": "Fixed dollar cost per trade execution.", "advanced": True},
         ]
+    },
+    "Volatility (VIX) Strategy": {
+        "function": run_volatility_vix_strategy,
+        "params": [
+            {"name": "symbol_val", "label": "Stock Symbol", "type": "text_input", "default": "TQQQ", "help": "The asset to trade based on VIX signals."},
+            {"name": "start_date_val", "label": "Start Date", "type": "date_input", "default": "2010-02-11", "help": "Beginning date for the backtest."},
+            {"name": "end_date", "label": "End Date", "type": "date_input", "default": "today", "help": "Ending date for the backtest."},
+            {"name": "initial_capital_val", "label": "Initial Capital", "type": "number_input", "default": 100000.0, "help": "Starting account balance."},
+            {"name": "vix_ema_len", "label": "VIX EMA Length", "type": "number_input", "min": 1, "value": 3, "step": 1, "help": "Period for the first EMA of VIX."},
+            {"name": "vix_ma_len", "label": "VIX MA Length", "type": "number_input", "min": 1, "value": 20, "step": 1, "help": "Period for the EMA of the VIX EMA."},
+            {"name": "vix_threshold", "label": "VIX Absolute Threshold", "type": "number_input", "min": 0.0, "value": 20.0, "step": 1.0, "help": "Absolute VIX level for entry/exit logic."},
+            {"name": "short_multiplier", "label": "VIX Exit Multiplier", "type": "number_input", "min": 1.0, "value": 1.15, "step": 0.05, "help": "Exit if VIX EMA > VIX MA * this multiplier."},
+            {"name": "cash_yield_apr", "label": "Cash Yield APR (%)", "type": "number_input", "min": 0.0, "value": 0.0, "step": 0.1, "format": "%.2f", "transform": lambda x: x / 100, "help": "Annual interest on cash.", "advanced": True},
+            {"name": "benchmark_symbol", "label": "Benchmark Symbol", "type": "text_input", "default": "SPY", "help": "Standard index to compare performance.", "advanced": True},
+            {"name": "slippage_bps", "label": "Slippage (bps)", "type": "number_input", "min": 0.0, "value": 5.0, "step": 1.0, "help": "Trading slippage in basis points.", "advanced": True},
+            {"name": "commission", "label": "Commission ($)", "type": "number_input", "min": 0.0, "value": 0.0, "step": 0.01, "help": "Fixed dollar cost per trade execution.", "advanced": True},
+        ]
     }
 }
 
@@ -109,4 +127,5 @@ __all__ = [
     'run_9sig_strategy',
     'run_moving_average_strategy',
     'run_dual_momentum_strategy',
+    'run_volatility_vix_strategy',
 ]
