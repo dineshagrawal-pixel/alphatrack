@@ -3050,6 +3050,10 @@ def generate_backtest_report(result: BacktestResult):
         st.subheader("Trailing Returns")
         render_trailing_returns(df_results, benchmark_symbol)
 
+        st.markdown("---")
+        st.subheader("Rolling Returns Analysis")
+        render_rolling_returns_analysis(df_results, benchmark_symbol)
+
     with tabs[2]: # RISK & VOLATILITY
         st.subheader("Drawdown Analysis")
         render_underwater_chart(df_results, benchmark_symbol)
