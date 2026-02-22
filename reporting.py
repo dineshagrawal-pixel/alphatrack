@@ -1760,9 +1760,9 @@ def render_rolling_returns_analysis(df_results, benchmark_symbol="SPY"):
         # Flatten MultiIndex to string names for Streamlit compatibility (fixes JSON serialization of tuples)
         flattened_cols = [f"{c[0]} | {c[1]}" for c in df_ann_roll.columns]
         
-        # Maps for styling
-        strat_cols_str = [f"{c[0]} | {c[1]}" for c in strat_cols]
-        diff_cols_str = [f"{c[0]} | {c[1]}" for c in diff_cols]
+        # Identify strategy and diff columns in flattened format for styling
+        strat_cols_str = [f"{c[0]} | {c[1]}" for c in df_ann_roll.columns if c[1] == "Strategy"]
+        diff_cols_str = [f"{c[0]} | {c[1]}" for c in df_ann_roll.columns if c[1].startswith("vs ")]
         
         # Create a version with flattened columns for display
         df_display = df_ann_roll.copy()
