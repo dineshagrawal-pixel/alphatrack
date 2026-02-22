@@ -1757,35 +1757,44 @@ def render_rolling_returns_analysis(df_results, benchmark_symbol="SPY"):
         df_ann_roll.index = df_ann_roll.index.map(str)
         df_ann_roll.index.name = "Year"
 
-        strat_cols = [c for c in df_ann_roll.columns if c[1] == "Strategy"]
-        vmax_ann = df_ann_roll[strat_cols].abs().max().max()
+        # Flatten MultiIndex to string names for Streamlit compatibility (fixes JSON serialization of tuples)
+        flattened_cols = [f"{c[0]} | {c[1]}" for c in df_ann_roll.columns]
+        
+        # Maps for styling
+        strat_cols_str = [f"{c[0]} | {c[1]}" for c in strat_cols]
+        diff_cols_str = [f"{c[0]} | {c[1]}" for c in diff_cols]
+        
+        # Create a version with flattened columns for display
+        df_display = df_ann_roll.copy()
+        df_display.columns = flattened_cols
+
+        vmax_ann = df_display[strat_cols_str].abs().max().max()
         if pd.isna(vmax_ann) or vmax_ann == 0: vmax_ann = 15.0
 
-        diff_vmax_ann = df_ann_roll[diff_cols].abs().max().max() if diff_cols else 0
+        diff_vmax_ann = df_display[diff_cols_str].abs().max().max() if diff_cols_str else 0
         if pd.isna(diff_vmax_ann) or diff_vmax_ann == 0: diff_vmax_ann = 10.0
 
-        styler_ann = df_ann_roll.style.background_gradient(
-            cmap='RdYlGn', subset=strat_cols,
+        styler_ann = df_display.style.background_gradient(
+            cmap='RdYlGn', subset=strat_cols_str,
             vmin=-vmax_ann, vmax=vmax_ann, axis=None
         )
 
-        if diff_cols:
+        if diff_cols_str:
             styler_ann = styler_ann.background_gradient(
-                cmap='RdYlGn', subset=diff_cols,
+                cmap='RdYlGn', subset=diff_cols_str,
                 vmin=-diff_vmax_ann, vmax=diff_vmax_ann, axis=None
             )
 
-        styler_ann = styler_ann.format("{:+.2f}%", subset=diff_cols, na_rep="None")
-        styler_ann = styler_ann.format("{:.2f}%", subset=[c for c in df_ann_roll.columns if c not in diff_cols], na_rep="None")
-        # Must apply AFTER gradients — explicitly paints null cells white so background_gradient doesn't leave them black
+        styler_ann = styler_ann.format("{:+.2f}%", subset=diff_cols_str, na_rep="None")
+        styler_ann = styler_ann.format("{:.2f}%", subset=[c for c in flattened_cols if c not in diff_cols_str], na_rep="None")
         styler_ann = styler_ann.highlight_null(props='background-color: #f8f8f8; color: #bbbbbb;')
 
-        # Prepare column config for MultiIndex to ensure numeric sorting
+        # Prepare column config using the flattened string names
         roll_column_config = {
             col: st.column_config.NumberColumn(
-                col[1], 
-                format="%+.2f%%" if col in diff_cols else "%.2f%%"
-            ) for col in df_ann_roll.columns
+                col, # Use the string name as the label
+                format="%+.2f%%" if col in diff_cols_str else "%.2f%%"
+            ) for col in flattened_cols
         }
 
         st.dataframe(styler_ann, use_container_width=True, column_config=roll_column_config)
