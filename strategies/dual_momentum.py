@@ -9,6 +9,7 @@ import numpy as np
 from common import (
     download_price_data,
     download_multiple_tickers,
+    get_data_start_date,
     calculate_daily_yield,
     create_trade_log_entry,
     close_trade_log_entry,
@@ -38,10 +39,9 @@ def run_dual_momentum_strategy(
     2. Absolute Momentum: If Growth Asset return > Cash/BIL return, stay in Growth.
     3. Relative Momentum: Not fully implemented in 2-asset version, but if Growth is negative, we switch.
     """
-    # 1. DATA FETCHING
+    # 1. DATA FETCHING (Include consistent buffer)
     start_dt = pd.to_datetime(start_date)
-    buffer_days = int(lookback_months * 31 + 60)
-    download_start = start_dt - pd.Timedelta(days=buffer_days)
+    download_start = get_data_start_date(start_date)
     
     tickers = [growth_symbol, defensive_symbol, benchmark_symbol]
     all_prices = download_multiple_tickers(tickers, download_start)

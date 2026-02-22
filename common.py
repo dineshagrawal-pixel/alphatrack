@@ -10,6 +10,9 @@ import numpy as np
 import streamlit as st
 from functools import lru_cache
 import requests
+import datetime
+
+GLOBAL_DATA_BUFFER_DAYS = 730 # 2 Years standard buffer
 
 
 # ---------------------------------------------------------------------------
@@ -130,6 +133,17 @@ def get_yf_session():
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     })
     return session
+
+def get_data_start_date(start_date_val, buffer_days=GLOBAL_DATA_BUFFER_DAYS):
+    """
+    Standardize the data download start date to maximize cache hits.
+    Adds a buffer and rounds to the start of the month.
+    """
+    dt = pd.to_datetime(start_date_val)
+    # Apply standard buffer
+    buf_dt = dt - pd.Timedelta(days=buffer_days)
+    # Round to start of month to normalize keys across different user inputs
+    return buf_dt.replace(day=1)
 
 @st.cache_data(show_spinner=False, ttl=86400)
 def _cached_yf_download(ticker, start_date):

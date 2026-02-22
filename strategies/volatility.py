@@ -9,6 +9,7 @@ import numpy as np
 import yfinance as yf
 from common import (
     download_price_data,
+    get_data_start_date,
     calculate_daily_yield,
     create_trade_log_entry,
     close_trade_log_entry,
@@ -35,10 +36,9 @@ def run_volatility_strategy(
     Volatility Strategy: Uses vol14 < vol200 or price > sma200 to go long.
     Matches user's reference script V5.
     """
-    # 1. FETCH DATA (Dynamic buffer for indicators)
+    # 1. FETCH DATA (Include consistent buffer)
     start_dt = pd.to_datetime(start_date_val)
-    buffer_days = int(200 * 1.5) # Based on 200-day indicators
-    download_start = start_dt - pd.Timedelta(days=buffer_days)
+    download_start = get_data_start_date(start_date_val)
     
     prices = download_price_data(symbol_val, download_start)
     if prices.empty:

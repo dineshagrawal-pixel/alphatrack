@@ -9,6 +9,7 @@ import numpy as np
 import yfinance as yf
 from common import (
     download_price_data,
+    get_data_start_date,
     calculate_daily_yield,
     create_trade_log_entry,
     close_trade_log_entry,
@@ -40,10 +41,9 @@ def run_moving_average_strategy(
     - Signal: Price vs moving average of daily closing prices.
     - Cash Floor: Maintains a minimum percentage of the high-water mark in cash.
     """
-    # 1. DATA FETCHING (Include buffer for SMA calculation)
+    # 1. DATA FETCHING (Include consistent buffer)
     start_dt = pd.to_datetime(start_date_val)
-    buffer_days = int(lookback_period_months * 45) 
-    download_start = start_dt - pd.Timedelta(days=buffer_days)
+    download_start = get_data_start_date(start_date_val)
     
     prices = download_price_data(symbol_val, download_start)
     if prices.empty:

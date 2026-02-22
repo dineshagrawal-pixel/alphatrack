@@ -8,7 +8,14 @@ import pandas as pd
 import yfinance as yf
 import numpy as np
 import datetime
-from common import build_strategy_result, BacktestResult, make_empty_result, apply_trading_costs
+from common import (
+    build_strategy_result, 
+    BacktestResult, 
+    make_empty_result, 
+    apply_trading_costs,
+    get_data_start_date,
+    download_multiple_tickers
+)
 
 def run_9sig_strategy(
     symbol_val,
@@ -35,27 +42,23 @@ def run_9sig_strategy(
     9 Signal Strategy: A multi-signal strategy that manages TQQQ and a side fund.
     Matches the user's reference script CAGR and logic.
     """
-    # 1. UNIFIED DATA FETCHING (Include 2-year buffer for 30-Down Rule)
+    # 1. UNIFIED DATA FETCHING (Include consistent buffer)
     start_dt = pd.to_datetime(start_date_val)
-    download_start = start_dt - pd.Timedelta(days=730)
-    
-    raw = yf.download([symbol_val, side_fund_val, "SHY", benchmark_symbol], 
-                      start=str(download_start.date()), progress=False)
-    
-    # Handle MultiIndex if present
-    if isinstance(raw.columns, pd.MultiIndex):
-        adj = 'Adj Close' if 'Adj Close' in raw.columns.levels[0] else 'Close'
-        prices_df = raw[adj]
-    else:
-        prices_df = raw
-    
-    tqqq_p = prices_df[symbol_val].dropna()
+    download_start = get_data_start_date(start_date_val)
+
+    # Use standardized multi-ticker downloader to benefit from caching & sessions
+    prices_df = download_multiple_tickers([symbol_val, side_fund_val, "SHY", benchmark_symbol], download_start)
+
+    if prices_df.empty:
+        return make_empty_result(start_date_val, initial_capital_val, symbol_val, benchmark_symbol)
+
+    tqqq_p = prices_df[symbol_val].dropna() if symbol_val in prices_df.columns else pd.Series()
     # Fill side fund with SHY for historical depth
     if side_fund_val in prices_df.columns:
         side_p = prices_df[side_fund_val].fillna(prices_df["SHY"]).dropna()
     else:
         side_p = prices_df["SHY"].dropna()
-        
+
     bench_p = prices_df[benchmark_symbol].dropna() if benchmark_symbol in prices_df.columns else tqqq_p
     
     full_df = pd.DataFrame({'Price': tqqq_p, 'SidePrice': side_p, 'Benchmark': bench_p}).dropna(subset=['Price', 'SidePrice'])
