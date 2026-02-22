@@ -9,12 +9,14 @@ import numpy as np
 from common import (
     load_breadth_data,
     download_price_data,
+    get_data_start_date,
     calculate_daily_yield,
     create_trade_log_entry,
     close_trade_log_entry,
     create_historical_record,
     create_cash_pct_df,
     build_strategy_result,
+    make_empty_result,
     apply_trading_costs,
     BacktestResult
 )
@@ -63,10 +65,17 @@ def run_breadth_backtest(
 
     # Load breadth data
     breadth = load_breadth_data(BREADTH_FILE_PATH)
-    start_str = breadth.index.min().strftime('%Y-%m-%d')
+    
+    # Use standardized start date if provided to maximize cache hits
+    if start_date:
+        download_start = get_data_start_date(start_date)
+    else:
+        download_start = breadth.index.min().strftime('%Y-%m-%d')
+        
+    start_str = str(download_start)
     
     # Download strategy ticker prices
-    prices = download_price_data(ticker, start_str)
+    prices = download_price_data(ticker, download_start)
     
     if prices.empty:
         # Return empty data if no data available
