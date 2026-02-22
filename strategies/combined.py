@@ -122,13 +122,18 @@ def run_combined_strategy(
     # 3. Merge Trade Logs
     # Add tags to identify which sub-strategy made the trade
     # trade_log is a DataFrame in BacktestResult, so convert to records list first
-    t1_list = res_breadth.trade_log.to_dict('records') if not res_breadth.trade_log.empty else []
-    t2_list = res_ninesig.trade_log.to_dict('records') if not res_ninesig.trade_log.empty else []
-    t3_list = res_vol.trade_log.to_dict('records') if not res_vol.trade_log.empty else []
+    def get_records(res):
+        if hasattr(res, 'trade_log') and isinstance(res.trade_log, pd.DataFrame) and not res.trade_log.empty:
+            return res.trade_log.to_dict('records')
+        return []
+
+    t1_list = get_records(res_breadth)
+    t2_list = get_records(res_ninesig)
+    t3_list = get_records(res_vol)
     
-    t1 = [{**t, 'Strategy': 'Breadth'} for t in t1_list]
-    t2 = [{**t, 'Strategy': '9-Sig'} for t in t2_list]
-    t3 = [{**t, 'Strategy': 'Volatility'} for t in t3_list]
+    t1 = [{**t, 'Strategy': 'Breadth'} for t in t1_list if isinstance(t, dict)]
+    t2 = [{**t, 'Strategy': '9-Sig'} for t in t2_list if isinstance(t, dict)]
+    t3 = [{**t, 'Strategy': 'Volatility'} for t in t3_list if isinstance(t, dict)]
     
     combined_trades = sorted(t1 + t2 + t3, key=lambda x: x.get('Date', x.get('Entry Date')))
     

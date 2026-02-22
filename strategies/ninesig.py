@@ -218,17 +218,4 @@ def run_9sig_strategy(
 
 def _create_empty_results(start_date, initial_capital, benchmark_symbol, symbol):
     """Create empty results when no data is available."""
-    dates = pd.date_range(start=start_date, periods=10, freq='D')
-    dummy_data = {
-        'Strategy': np.full(10, initial_capital),
-        'BH': np.full(10, initial_capital),
-        benchmark_symbol: np.full(10, initial_capital),
-        'Cash': np.full(10, initial_capital),
-        'close': np.full(10, 100.0)
-    }
-    df_results = pd.DataFrame(dummy_data, index=dates)
-    df_results['ret'] = df_results['Strategy'].pct_change().fillna(0)
-    rolling_returns_df = pd.DataFrame(index=df_results.index)
-    cash_pct_df = pd.DataFrame({'Cash %': df_results['Cash'] / df_results['Strategy']}, 
-                               index=df_results.index).fillna(0)
-    return df_results, pd.DataFrame([]), [], initial_capital, rolling_returns_df, cash_pct_df, symbol
+    return make_empty_result(start_date, initial_capital, symbol, benchmark_symbol)
