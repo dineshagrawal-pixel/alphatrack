@@ -138,7 +138,7 @@ def run_moving_average_strategy(
                     stock_val -= stock_to_sell
                     cash += abs(net_proceeds)
                     trade_log.append({
-                        'Date': date.date() if hasattr(date, 'date') else date,
+                        'Entry Date': date.date() if hasattr(date, 'date') else date,
                         'Status': 'FLOOR REFILL',
                         'Amt': round(stock_to_sell, 2),
                         'Entry Price': round(p, 2),

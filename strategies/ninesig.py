@@ -120,7 +120,7 @@ def run_9sig_strategy(
                 net_shortfall, cost = apply_trading_costs(shortfall, p, slippage_bps, commission)
                 eq_t -= net_shortfall
                 eq_s += shortfall
-                trades.append({'Date': date.date(), 'Status': 'FLOOR REFILL', 'Amt': shortfall, 'Entry Price': round(p, 2)})
+                trades.append({'Entry Date': date.date(), 'Status': 'FLOOR REFILL', 'Amt': shortfall, 'Entry Price': round(p, 2)})
 
         if is_rebalance_day:
             # Main Quarterly signals follow...
@@ -139,7 +139,7 @@ def run_9sig_strategy(
                     total = eq_t + eq_s
                     eq_t, eq_s = total * target_tqqq_pct, total * (1 - target_tqqq_pct)
                     signal_line = eq_t
-                    trades.append({'Date': date.date(), 'Status': '100-UP RESET', 'Amt': total, 'Entry Price': round(p, 2)})
+                    trades.append({'Entry Date': date.date(), 'Status': '100-UP RESET', 'Amt': total, 'Entry Price': round(p, 2)})
 
             # Rule II: Signal Line Math
             target_v = min(signal_line * q_growth_target, signal_line * q_growth_cap)
@@ -176,7 +176,7 @@ def run_9sig_strategy(
                             reset_cost = (abs(eq_t - total*target_tqqq_pct) * (slippage_bps/10000)) + commission
                             eq_s -= reset_cost
                             signal_line = eq_t
-                            trades.append({'Date': date.date(), 'Status': '30-DN RESET', 'Amt': total, 'Entry Price': round(p, 2)})
+                            trades.append({'Entry Date': date.date(), 'Status': '30-DN RESET', 'Amt': total, 'Entry Price': round(p, 2)})
                     else:
                         sell_amt = abs(trade_goal)
                         proceeds, cost = apply_trading_costs(-sell_amt, p, slippage_bps, commission)
@@ -194,7 +194,7 @@ def run_9sig_strategy(
 
             if action:
                 trades.append({
-                    'Date': date.date(), 'Status': action, 'Amt': abs(trade_goal), 'Entry Price': round(p, 2)
+                    'Entry Date': date.date(), 'Status': action, 'Amt': abs(trade_goal), 'Entry Price': round(p, 2)
                 })
 
         # 4.3 Record History

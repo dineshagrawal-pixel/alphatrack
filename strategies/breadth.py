@@ -170,7 +170,7 @@ def run_breadth_backtest(
                     stock_val -= sell_amt
                     cash += abs(proceeds)
                     trade_log.append({
-                        'Date': date.date() if hasattr(date, 'date') else date,
+                        'Entry Date': date.date() if hasattr(date, 'date') else date,
                         'Status': 'FLOOR REFILL',
                         'Amt': round(sell_amt, 2),
                         'Entry Price': round(row['close'], 2),
