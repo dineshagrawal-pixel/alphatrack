@@ -2396,12 +2396,19 @@ def render_interactive_growth_chart(df_results, symbol, benchmark_symbol="SPY"):
     
     for c in lower_panel_candidates:
         if c in df_results.columns:
-            # For the breadth strategy, highlowqag is the signal that goes to the lower pane
-            lower_cols.append(c)
-    
-    # We explicitly empty this to ensure nothing besides the equity curves
-    # from the 'curves' list appears in the top pane.
-    main_overlay_cols = []
+            if c == 'Signal':
+                # Heuristic: If Signal is large (near equity value), keep in main panel (9-Sig).
+                # If Signal is small (near price value), it's likely an SMA - discard it from 
+                # this chart to keep it clean.
+                first_strat = df_results['Strategy'].iloc[0] if 'Strategy' in df_results.columns else 1
+                first_sig = df_results['Signal'].iloc[0]
+                
+                if first_sig > (first_strat * 0.1):
+                    main_overlay_cols.append(c)
+                # else: we just don't add it to lower_cols or main_overlay_cols
+            else:
+                # Other factors like breadth or vol go to the lower pane
+                lower_cols.append(c)
     
     # Removed SMA and other price-based overlays
     
@@ -2505,8 +2512,17 @@ def render_interactive_growth_chart(df_results, symbol, benchmark_symbol="SPY"):
                 hovertemplate='%{y:.4f}'
             ), row=2, col=1)
         
+        # Determine appropriate label for lower panel
+        lower_label = "Indicators"
+        if any('vol' in c.lower() for c in lower_cols):
+            lower_label = "Volatility Metrics"
+        elif 'highlowqag' in lower_cols:
+            lower_label = "Market Breadth"
+        elif any('roc' in c.lower() for c in lower_cols):
+            lower_label = "Momentum (ROC)"
+
         fig.update_yaxes(
-            title_text="Market Breadth", 
+            title_text=lower_label, 
             row=2, col=1, 
             gridcolor='#f0f0f0',
             zeroline=True,
