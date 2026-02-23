@@ -159,3 +159,4 @@ Thumbs.db
 .backups/
 *.csv
 my_portfolio_pro.json
+strategy_configs.json

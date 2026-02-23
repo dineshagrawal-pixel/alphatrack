@@ -103,42 +103,82 @@ def apply_conditional_styling(df, only_strategy=False):
                 
                 num = float(clean_val)
                 
+                # Detect scale context
+                is_monthly = 'monthly' in metric_context
+                is_ratio = any(x in metric_context for x in ['sharpe', 'sortino', 'ratio', 'measure', 'expectancy', 'information', 'factor', 'beta', 'correlation', 'r2', 'alpha'])
+                
                 # Higher is Better Metrics keywords
                 hib = ['return', 'cagr', 'alpha', 'profit', 'sharpe', 'sortino', 'treynor', 'calmar', 
-                       'expectancy', 'win %', 'positive', 'm2 measure', 'gain/loss', 'capture ratio',
+                       'expectancy', 'win %', 'positive', 'm2 measure', 'gain/loss', 'upside capture',
                        'ending balance', 'analyzed trades', 'winning trades', 'information ratio',
-                       'active return', 'ratio', 'rolling', 'mean', 'success', 'average', 'high', 'low']
-                # Lower is Better Metrics keywords
-                lib = ['drawdown', 'standard deviation', 'volatility', 'tracking error', 'ulcer', 
-                       'loss', 'consecutive losers', 'cost impact', 'stdev']
+                       'active return', 'ratio', 'rolling', 'mean', 'success', 'average', 'high', 'low', 'r2', 'skewness', 'swr', 'pwr']
                 
-                if any(x in metric_context for x in hib):
-                    # Ratio/Ratio-like units (scale around 0-2)
-                    if any(x in metric_context for x in ['sharpe', 'sortino', 'ratio', 'calmar', 'measure', 'expectancy', 'alpha', 'information', 'factor']):
-                        if num >= 1.5: styles[i] = 'background-color: #1b5e20; color: white'
+                # Lower is Better Metrics keywords (lib)
+                lib = ['drawdown', 'standard deviation', 'volatility', 'tracking error', 'ulcer', 
+                       'loss', 'consecutive losers', 'cost impact', 'stdev', 'downside deviation', 
+                       'var', 'cvar', 'kurtosis', 'downside capture']
+                
+                # Handle Conflicts: downside capture is lib, upside capture is hib
+                if 'downside capture' in metric_context:
+                    match_lib = True
+                    match_hib = False
+                elif any(x in metric_context for x in hib):
+                    match_hib = True
+                    match_lib = False
+                elif any(x in metric_context for x in lib):
+                    match_hib = False
+                    match_lib = True
+                else:
+                    match_hib = False
+                    match_lib = False
+
+                if match_hib:
+                    if is_ratio:
+                        # Ratio scale (Sharpe, Sortino, Information, Calmar, Profit Factor)
+                        if num >= 2.0: styles[i] = 'background-color: #1b5e20; color: white'
                         elif num >= 1.0: styles[i] = 'background-color: #4caf50; color: white'
-                        elif num >= 0.5: styles[i] = '' # Use default theme color
                         elif num < 0: styles[i] = 'background-color: #d32f2f; color: white'
+                    elif 'alpha' in metric_context:
+                        # Alpha scale (Annualized excess return in %)
+                        if num >= 5.0: styles[i] = 'background-color: #1b5e20; color: white'
+                        elif num >= 2.0: styles[i] = 'background-color: #4caf50; color: white'
+                        elif num < 0: styles[i] = 'background-color: #d32f2f; color: white'
+                    elif is_monthly:
+                        # Monthly percentage scale
+                        if num >= 1.5: styles[i] = 'background-color: #1b5e20; color: white'
+                        elif num >= 0.8: styles[i] = 'background-color: #4caf50; color: white'
+                        elif num < 0: styles[i] = 'background-color: #d32f2f; color: white'
+                    elif 'win %' in metric_context or 'profitable' in metric_context:
+                        # Win Rate scale
+                        if num >= 65: styles[i] = 'background-color: #1b5e20; color: white'
+                        elif num >= 55: styles[i] = 'background-color: #4caf50; color: white'
+                        elif num < 45: styles[i] = 'background-color: #d32f2f; color: white'
                     else:
-                        # Percentage/Absolute units (scale around 0-100)
+                        # Annual percentage scale (CAGR, Returns)
                         if num >= 20: styles[i] = 'background-color: #1b5e20; color: white'
                         elif num >= 10: styles[i] = 'background-color: #4caf50; color: white'
-                        elif num >= 0: styles[i] = '' # Use default theme color
-                        else: styles[i] = 'background-color: #d32f2f; color: white'
+                        elif num < 0: styles[i] = 'background-color: #d32f2f; color: white'
 
-                elif any(x in metric_context for x in lib):
+                elif match_lib:
                     num_abs = abs(num)
                     if 'drawdown' in metric_context:
+                        # Drawdown scale
                         if num_abs <= 10: styles[i] = 'background-color: #1b5e20; color: white'
                         elif num_abs <= 20: styles[i] = 'background-color: #4caf50; color: white'
-                        elif num_abs <= 40: styles[i] = '' # Use default theme color
-                        else: styles[i] = 'background-color: #d32f2f; color: white'
+                        elif num_abs > 40: styles[i] = 'background-color: #d32f2f; color: white'
+                    elif 'kurtosis' in metric_context:
+                        # Kurtosis (Tail risk)
+                        if num > 3.0: styles[i] = 'background-color: #ffc107; color: black' # Warning for fat tails
+                    elif is_monthly:
+                        # Monthly Volatility
+                        if num_abs <= 3: styles[i] = 'background-color: #1b5e20; color: white'
+                        elif num_abs <= 6: styles[i] = 'background-color: #4caf50; color: white'
+                        elif num_abs > 12: styles[i] = 'background-color: #d32f2f; color: white'
                     else:
-                        # Volatility / Tracking Error / Cost Impact
-                        if num_abs <= 5: styles[i] = 'background-color: #1b5e20; color: white'
-                        elif num_abs <= 15: styles[i] = 'background-color: #4caf50; color: white'
-                        elif num_abs <= 30: styles[i] = '' # Use default theme color
-                        else: styles[i] = 'background-color: #d32f2f; color: white'
+                        # Annualized volatility etc.
+                        if num_abs <= 10: styles[i] = 'background-color: #1b5e20; color: white'
+                        elif num_abs <= 20: styles[i] = 'background-color: #4caf50; color: white'
+                        elif num_abs > 40: styles[i] = 'background-color: #d32f2f; color: white'
             except:
                 pass
         return styles
@@ -172,33 +212,66 @@ def apply_transposed_metrics_styling(df):
             hib = ['return', 'cagr', 'alpha', 'profit', 'sharpe', 'sortino', 'treynor', 'calmar', 
                    'expectancy', 'win %', 'positive', 'm2 measure', 'gain/loss', 'capture ratio',
                    'ending balance', 'analyzed trades', 'winning trades', 'information ratio',
-                   'active return', 'ratio', 'rolling', 'mean', 'success']
+                   'active return', 'ratio', 'rolling', 'mean', 'success', 'skewness']
             lib = ['drawdown', 'standard deviation', 'volatility', 'tracking error', 'ulcer', 
-                   'loss', 'consecutive losers', 'cost impact', 'stdev']
+                   'loss', 'consecutive losers', 'cost impact', 'stdev', 'cv', 'consistency']
             
+            is_ratio = any(x in col_name_lower for x in ['sharpe', 'sortino', 'ratio', 'calmar', 'measure', 'expectancy', 'alpha', 'information', 'factor', 'beta', 'correlation', 'r2'])
+            
+            # 1. Special case: Small-scale statistical metrics (CV, Consistency, Skewness, Kurtosis)
+            if 'skewness' in col_name_lower:
+                if num >= 0.5: return 'background-color: #1b5e20; color: white'
+                elif num >= 0: return 'background-color: #4caf50; color: white'
+                else: return 'background-color: #d32f2f; color: white'
+            
+            if 'kurtosis' in col_name_lower:
+                if num > 3.0: return 'background-color: #ffc107; color: black'
+                return ''
+
+            if any(x in col_name_lower for x in ['cv', 'consistency']):
+                if num_abs <= 0.15: return 'background-color: #1b5e20; color: white'
+                elif num_abs <= 0.30: return 'background-color: #4caf50; color: white'
+                elif num_abs > 0.60: return 'background-color: #d32f2f; color: white'
+                return ''
+
+            # 2. General Higher is Better (HIB)
             if any(x in col_name_lower for x in hib):
-                if any(x in col_name_lower for x in ['sharpe', 'sortino', 'ratio', 'calmar', 'measure', 'expectancy', 'alpha', 'information']):
-                    if num >= 1.5: return 'background-color: #1b5e20; color: white'
+                if is_ratio:
+                    # Ratio scale
+                    if num >= 2.0: return 'background-color: #1b5e20; color: white'
                     elif num >= 1.0: return 'background-color: #4caf50; color: white'
-                    elif num >= 0.5: return ''
                     elif num < 0: return 'background-color: #d32f2f; color: white'
+                elif 'alpha' in col_name_lower:
+                    # Alpha scale
+                    if num >= 5.0: return 'background-color: #1b5e20; color: white'
+                    elif num >= 2.0: return 'background-color: #4caf50; color: white'
+                    elif num < 0: return 'background-color: #d32f2f; color: white'
+                elif 'win %' in col_name_lower or 'profitable' in col_name_lower:
+                    # Win Rate scale
+                    if num >= 65: return 'background-color: #1b5e20; color: white'
+                    elif num >= 55: return 'background-color: #4caf50; color: white'
+                    elif num < 45: return 'background-color: #d32f2f; color: white'
                 else:
+                    # Annual percentage scale
                     if num >= 20: return 'background-color: #1b5e20; color: white'
                     elif num >= 10: return 'background-color: #4caf50; color: white'
-                    elif num >= 0: return ''
-                    else: return 'background-color: #d32f2f; color: white'
+                    elif num < 0: return 'background-color: #d32f2f; color: white'
+            
+            # 3. General Lower is Better (LIB)
             elif any(x in col_name_lower for x in lib):
                 num_abs = abs(num)
                 if 'drawdown' in col_name_lower:
                     if num_abs <= 10: return 'background-color: #1b5e20; color: white'
                     elif num_abs <= 20: return 'background-color: #4caf50; color: white'
-                    elif num_abs <= 40: return ''
-                    else: return 'background-color: #d32f2f; color: white'
+                    elif num_abs > 40: return 'background-color: #d32f2f; color: white'
+                elif any(x in col_name_lower for x in ['stdev', 'volatility', 'tracking error']):
+                    if num_abs <= 10: return 'background-color: #1b5e20; color: white'
+                    elif num_abs <= 20: return 'background-color: #4caf50; color: white'
+                    elif num_abs > 35: return 'background-color: #d32f2f; color: white'
                 else:
-                    if num_abs <= 5: return 'background-color: #1b5e20; color: white'
-                    elif num_abs <= 15: return 'background-color: #4caf50; color: white'
-                    elif num_abs <= 30: return ''
-                    else: return 'background-color: #d32f2f; color: white'
+                    if num_abs <= 10: return 'background-color: #1b5e20; color: white'
+                    elif num_abs <= 20: return 'background-color: #4caf50; color: white'
+                    elif num_abs > 35: return 'background-color: #d32f2f; color: white'
         except:
             pass
         return ''
@@ -271,68 +344,6 @@ def get_metric_help(section_name):
     
     help_text = "  \n\n".join([f"**{k}**: {METRIC_DEFINITIONS.get(k, '')}" for k in relevant_keys])
     return help_text if help_text else f"Detailed statistical analysis of {section_name.lower()}."
-
-
-def render_risk_return_scatter(metrics_dict, df_results, benchmark_symbol):
-    """
-    Render Ann. Return vs Volatility scatter plot - a Portfolio Visualizer classic.
-    """
-    st.subheader("Risk vs. Return")
-    
-    # Extract data points
-    assets = ['Strategy', 'Buy & Hold', benchmark_symbol]
-    
-    # Safe extraction of strategy stats
-    def parse_pct(val):
-        if val is None or not isinstance(val, str): return 0.0
-        try:
-            return float(val.replace('%','').replace(',',''))
-        except:
-            return 0.0
-
-    strat_ret = parse_pct(metrics_dict.get('Annualized Return'))
-    strat_vol = parse_pct(metrics_dict.get('Annualized Std Dev'))
-    
-    # Get benchmark stats
-    def get_stats(col):
-        if col not in df_results.columns: return 0.0, 0.0
-        rets = df_results[col].pct_change().dropna()
-        if len(rets) < 2: return 0.0, 0.0
-        ann_ret = ((1 + rets).prod()**(252/len(rets)) - 1) * 100
-        ann_vol = rets.std() * np.sqrt(252) * 100
-        return ann_ret, ann_vol
-
-    bh_ret, bh_vol = get_stats('BH')
-    bench_ret, bench_vol = get_stats(benchmark_symbol)
-
-    # Plot
-    fig, ax = plt.subplots(figsize=(10, 6))
-    
-    points = [
-        (strat_vol, strat_ret, 'Strategy', PV_COLORS['Strategy'], 'o'),
-        (bh_vol, bh_ret, 'Buy & Hold', PV_COLORS['BH'], 's'),
-    ]
-    if benchmark_symbol in df_results.columns:
-        points.append((bench_vol, bench_ret, benchmark_symbol, PV_COLORS['Benchmark'], '^'))
-
-    for x, y, label, color, marker in points:
-        ax.scatter(x, y, s=150, c=color, label=label, marker=marker, edgecolors='white', linewidth=1, zorder=5)
-        ax.annotate(label, (x, y), xytext=(8, 0), textcoords='offset points', fontsize=9, fontweight='bold')
-
-    ax.set_xlabel("Annualized Volatility (%)", fontsize=10)
-    ax.set_ylabel("Annualized Return (%)", fontsize=10)
-    ax.set_title("Return vs. Volatility", fontsize=12, pad=15)
-    ax.grid(True, linestyle='--', alpha=0.3)
-    
-    # Draw "Efficient Frontier-like" connecting line for context
-    if len(points) > 1:
-        xs = [p[0] for p in points]
-        ys = [p[1] for p in points]
-        ax.plot(xs, ys, color='#cccccc', linestyle=':', alpha=0.5, zorder=1)
-
-    plt.tight_layout()
-    st.pyplot(fig)
-    plt.close(fig)
 
 
 def render_market_stress_analysis(df_results, benchmark_symbol):
@@ -2134,17 +2145,41 @@ def render_monte_carlo_simulation(mc_results, mc_sim_df, initial_capital, num_si
     
     p_data = []
     for p, label in zip(ps, p_labels):
-        final_val = mc_sim_df.iloc[-1].quantile(p)
-        cagr_val = mc_results['CAGR'].quantile(p)
-        mdd_val = mc_results['Max Drawdown'].quantile(1-p) # lower p is worse drawdown
+        final_val = float(mc_sim_df.iloc[-1].quantile(p))
+        cagr_val = float(mc_results['CAGR'].quantile(p)) * 100
+        mdd_val = float(mc_results['Max Drawdown'].quantile(1-p)) * 100 # lower p is worse drawdown
         p_data.append({
             'Percentile': label,
-            'Final Balance': f"${final_val:,.0f}",
-            'CAGR': f"{cagr_val*100:.2f}%",
-            'Max Drawdown': f"{mdd_val*100:.2f}%"
+            'Final Balance': final_val,
+            'CAGR': cagr_val,
+            'Max Drawdown': mdd_val
         })
     
-    st.table(pd.DataFrame(p_data))
+    df_mc = pd.DataFrame(p_data)
+    
+    # Apply standard styling
+    styled_mc = apply_conditional_styling(df_mc)
+    
+    # Custom tweaks for Monte Carlo (format the columns correctly)
+    column_config = {
+        "Percentile": st.column_config.TextColumn("Percentile"),
+        "Final Balance": st.column_config.NumberColumn("Final Balance", format="$%,.0f"),
+        "CAGR": st.column_config.NumberColumn("CAGR", format="%.2f%%"),
+        "Max Drawdown": st.column_config.NumberColumn("Max Drawdown", format="%.2f%%"),
+    }
+    
+    # Style the CAGR and Drawdown specifically since they are central to MC outcomes
+    # We use apply_conditional_styling which already has the industry bands logic
+    st.dataframe(
+        styled_mc.format({
+            'Final Balance': "${:,.0f}",
+            'CAGR': "{:.2f}%",
+            'Max Drawdown': "{:.2f}%"
+        }), 
+        use_container_width=True, 
+        hide_index=True, 
+        column_config=column_config
+    )
     
     fig, ax = plt.subplots(figsize=(12, 6))
     for i in range(min(50, mc_sim_df.shape[1])):
@@ -2191,43 +2226,31 @@ def render_survival_discipline(df_results, trade_list_results, trade_log_results
         avg_trade_duration = 0
     
     survival_df = pd.DataFrame({
-        'Portfolio': [
-            f"{time_in_market:.1f}%",
-            f"{avg_cash_pct:.1f}%",
-            f"{max_cash_pct:.1f}%",
-            f"{trades_per_year:.1f}",
-            f"{avg_trade_duration:.0f} days"
+        'Strategy': [
+            time_in_market,
+            avg_cash_pct,
+            max_cash_pct,
+            trades_per_year,
+            avg_trade_duration
         ],
-        'Benchmark (BH)': ["100.0%", "0.0%", "0.0%", "N/A", "N/A"],
-        'Standard Range': [
-            '>80% (green), 60-80% (yellow), <60% (red)',
-            '<20% (green), 20-40% (yellow), >40% (red)',
-            '<40% (green), 40-60% (yellow), >60% (red)',
-            '10-30 (green), 5-10 or 30-50 (yellow), <5 or >50 (red)',
-            'Lower is better'
-        ]
+        'Benchmark (BH)': [100.0, 0.0, 0.0, 1.0, 365.0]
     }, index=['Time in Market', 'Average Cash %', 'Maximum Cash %', 'Trades per Year', 'Avg Trade Duration'])
-    
-    # Remove 'Standard Range' row as requested
-    survival_df = survival_df.drop('Standard Range', axis=1)
-
-    # Add help tooltips to survival table
-    column_config = {
-        "Time in Market": st.column_config.TextColumn("Time in Market", help=METRIC_DEFINITIONS["Time in Market"]),
-        "Avg Trade Duration": st.column_config.TextColumn("Avg Duration", help="Average number of days a trade was held."),
-        "Trades per Year": st.column_config.TextColumn("Trade Freq", help="Annual frequency of trading activity."),
-    }
 
     # Transpose survival
-    survival_t = survival_df.T.reset_index().rename(columns={'index': 'Portfolio'})
-    # Fix renaming after transpose
-    survival_t = survival_t.rename(columns={'index': 'Portfolio'})
+    survival_t = survival_df.T.reset_index().rename(columns={'index': 'Strategy Name'})
     
     st.dataframe(
         apply_transposed_metrics_styling(survival_t), 
         use_container_width=True, 
         width='stretch',
-        column_config=column_config,
+        column_config={
+            "Strategy Name": st.column_config.TextColumn("Portfolio"),
+            "Time in Market": st.column_config.NumberColumn("Time in Market", help=METRIC_DEFINITIONS["Time in Market"], format="%.1f%%"),
+            "Average Cash %": st.column_config.NumberColumn("Avg Cash", format="%.1f%%"),
+            "Maximum Cash %": st.column_config.NumberColumn("Max Cash", format="%.1f%%"),
+            "Trades per Year": st.column_config.NumberColumn("Trade Freq", help="Annual frequency of trading activity.", format="%.1f"),
+            "Avg Trade Duration": st.column_config.NumberColumn("Avg Duration", help="Average number of days a trade was held.", format="%.0f days"),
+        },
         hide_index=True,
         height=(len(survival_t) + 1) * 35 + 2
     )
@@ -2254,33 +2277,33 @@ def render_stability_check(trade_list_results, df_results):
     rolling_vol = df_results['ret'].rolling(20).std() * np.sqrt(252)
     vol_consistency = rolling_vol.std()
     
-    # Record metrics
+    # Record metrics as raw numbers for styling
     stability_df = pd.DataFrame({
-        'Portfolio': [
-            str(sample_size),
-            f"{abs(cv):.2f}" if cv != float('inf') else "Inf",
-            f"{skewness:.2f}",
-            f"{kurtosis:.2f}",
-            f"{vol_consistency:.2f}"
+        'Strategy': [
+            sample_size,
+            abs(cv) if cv != float('inf') else 0.0,
+            skewness,
+            kurtosis,
+            vol_consistency
         ],
-        'Benchmark (BH)': ["1", "N/A", "N/A", "N/A", "N/A"]
+        'Benchmark (BH)': [1, 0.0, 0.0, 0.0, 0.0]
     }, index=['Number of Trades', 'CV (Return Volatility)', 'Skewness', 'Kurtosis', 'Vol Consistency'])
     
-    # Add help tooltips to stability table
-    column_config = {
-        "Number of Trades": st.column_config.TextColumn("Trades", help="Sample size for statistical analysis."),
-        "CV (Return Volatility)": st.column_config.TextColumn("CV", help="Coefficient of Variation: standardized measure of return dispersion."),
-        "Skewness": st.column_config.TextColumn("Skewness", help="Measures return asymmetry (longer left vs right tail)."),
-        "Vol Consistency": st.column_config.TextColumn("Vol Consistency", help="Standard deviation of rolling volatility. Lower indicates stable risk."),
-    }
 
-    stability_t = stability_df.T.reset_index().rename(columns={'index': 'Portfolio'})
+    stability_t = stability_df.T.reset_index().rename(columns={'index': 'Strategy Name'})
 
     st.dataframe(
         apply_transposed_metrics_styling(stability_t), 
         use_container_width=True, 
         width='stretch',
-        column_config=column_config,
+        column_config={
+            "Strategy Name": st.column_config.TextColumn("Portfolio"),
+            "Number of Trades": st.column_config.NumberColumn("Trades", help="Sample size for statistical analysis.", format="%d"),
+            "CV (Return Volatility)": st.column_config.NumberColumn("CV", help="Coefficient of Variation: standardized measure of return dispersion.", format="%.2f"),
+            "Skewness": st.column_config.NumberColumn("Skewness", help="Measures return asymmetry (longer left vs right tail).", format="%.2f"),
+            "Kurtosis": st.column_config.NumberColumn("Kurtosis", help="Measures tail risk.", format="%.2f"),
+            "Vol Consistency": st.column_config.NumberColumn("Vol Consistency", help="Standard deviation of rolling volatility. Lower indicates stable risk.", format="%.2f"),
+        },
         hide_index=True,
         height=(len(stability_t) + 1) * 35 + 2
     )
@@ -2743,21 +2766,21 @@ def render_annual_returns_table(df_results, initial_capital, benchmark_symbol="S
     styler = styler.format({
         'Strat Ret': "{:.2f}%", 'BH Ret': "{:.2f}%", 'Bench Ret': "{:.2f}%",
         'Diff': "{:+.2f}%",
-        'Strat Bal': "${:,.0f}", 'BH Bal': "${:,.0f}", 'Bench Bal': "${:,.0f}",
-        'Cash Bal': "${:,.0f}", 'Cash %': "{:.1f}%"
+        'Strat Bal': "${:,.2f}", 'BH Bal': "${:,.2f}", 'Bench Bal': "${:,.2f}",
+        'Cash Bal': "${:,.2f}", 'Cash %': "{:.2f}%"
     }, na_rep="N/A")
     
     column_config = {
         "Year": st.column_config.TextColumn("Year"),
-        "Strat Ret": st.column_config.NumberColumn("Strategy Return", format="%.2f%%"),
-        "Strat Bal": st.column_config.NumberColumn("Strategy Balance", format="$%,.0f"),
-        "Cash Bal": st.column_config.NumberColumn("Cash Balance", format="$%,.0f"),
-        "Cash %": st.column_config.NumberColumn("Cash %", format="%.1f%%"),
-        "BH Ret": st.column_config.NumberColumn("B&H Return", format="%.2f%%"),
-        "Diff": st.column_config.NumberColumn(f"vs {benchmark_symbol}", format="%+.2f%%", help=f"Strategy Return minus {benchmark_symbol} Return. Green = outperformed, Red = underperformed."),
-        "BH Bal": st.column_config.NumberColumn("B&H Balance", format="$%,.0f"),
-        "Bench Ret": st.column_config.NumberColumn(f"{benchmark_symbol} Return", format="%.2f%%"),
-        "Bench Bal": st.column_config.NumberColumn(f"{benchmark_symbol} Balance", format="$%,.0f"),
+        "Strat Ret": st.column_config.NumberColumn("Strategy Return"),
+        "Strat Bal": st.column_config.NumberColumn("Strategy Balance"),
+        "Cash Bal": st.column_config.NumberColumn("Cash Balance"),
+        "Cash %": st.column_config.NumberColumn("Cash %"),
+        "BH Ret": st.column_config.NumberColumn("B&H Return"),
+        "Diff": st.column_config.NumberColumn(f"vs {benchmark_symbol}", help=f"Strategy Return minus {benchmark_symbol} Return. Green = outperformed, Red = underperformed."),
+        "BH Bal": st.column_config.NumberColumn("B&H Balance"),
+        "Bench Ret": st.column_config.NumberColumn(f"{benchmark_symbol} Return"),
+        "Bench Bal": st.column_config.NumberColumn(f"{benchmark_symbol} Balance"),
     }
     
     st.dataframe(styler, use_container_width=True, column_config=column_config)
@@ -3125,7 +3148,6 @@ def generate_backtest_report(result: BacktestResult):
         st.markdown("---")
         st.subheader("Risk-Adjusted Metrics")
         render_risk_adjusted_returns(metrics_dict, df_results, benchmark_symbol)
-        render_risk_return_scatter(metrics_dict, df_results, benchmark_symbol)
         
         st.markdown("---")
         st.subheader("Allocation & Stability")
