@@ -202,11 +202,12 @@ elif nav_selection == "💼 Portfolio Manager":
     accts = db.get('accounts', {})
     acct_names = list(accts.keys())
     
+    # Profile Selection Column
+    acc_col, tool_col = st.columns([3, 1])
+    
     if not acct_names:
-        st.info("Create an account to track your live trades.")
+        acc_col.info("Create an account to track your live trades.")
     else:
-        # Profile Selection Column
-        acc_col, tool_col = st.columns([3, 1])
         selected_account = acc_col.selectbox("Account", acct_names, label_visibility="collapsed")
         
         with tool_col.popover("⚙️ Account Options"):
