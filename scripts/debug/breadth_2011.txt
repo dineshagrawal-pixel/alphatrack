@@ -1,4 +1,0 @@
-2026-02-24 09:11:27.518 WARNING streamlit.runtime.caching.cache_data_api: No runtime found, using MemoryCacheStorageManager
-2026-02-24 09:11:27.521 WARNING streamlit.runtime.caching.cache_data_api: No runtime found, using MemoryCacheStorageManager
-Breadth on 2011-03-10: highlowq    68.0
-Name: 2011-03-10 00:00:00, dtype: float64
