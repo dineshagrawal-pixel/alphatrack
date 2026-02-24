@@ -1,0 +1,18 @@
+{
+    "Market Breadth Strategy": {
+        "default": {
+            "ticker": "TQQQ",
+            "exchange": "Nasdaq",
+            "start_date": "2010-02-11",
+            "initial_capital": 100000.0,
+            "end_date": "2026-02-24",
+            "cash_floor_pct": 0.0,
+            "rebalance_pct": 100.0,
+            "starting_cash_pct": 100.0,
+            "cash_yield_apr": 0.0,
+            "benchmark_symbol": "SPY",
+            "slippage_bps": 5.0,
+            "commission": 0.0
+        }
+    }
+}
