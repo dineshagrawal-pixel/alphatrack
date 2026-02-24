@@ -157,6 +157,8 @@ Thumbs.db
 
 # Project specific
 .backups/
-*.csv
-my_portfolio_pro.json
-strategy_configs.json
+# *.csv  # Commeting out to allow essential data
+# my_portfolio_pro.json
+# strategy_configs.json
+!data/*.csv
+!data/*.json
