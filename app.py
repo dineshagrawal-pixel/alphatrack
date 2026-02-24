@@ -5,13 +5,13 @@ import os
 from datetime import datetime
 
 from strategies import STRATEGIES
-from reporting import generate_backtest_report
+from core.reporting import generate_backtest_report
 
 st.set_page_config(layout="wide", page_title="AlphaLab", page_icon="⚗️")
 
 # --- Configuration Persistence ---
-CONFIG_FILE = "strategy_configs.json"
-PORTFOLIO_FILE = "my_portfolio_pro.json"
+CONFIG_FILE = os.path.join("data", "strategy_configs.json")
+PORTFOLIO_FILE = os.path.join("data", "my_portfolio_pro.json")
 
 def load_configs():
     if os.path.exists(CONFIG_FILE):
@@ -197,7 +197,7 @@ if nav_selection == "📈 Strategy Lab":
 # =========================================================
 elif nav_selection == "💼 Portfolio Manager":
     st.title("💼 Portfolio Manager")
-    from portfolio_manager import render_portfolio_manager, load_portfolio, save_portfolio
+    from core.portfolio_manager import render_portfolio_manager, load_portfolio, save_portfolio
     
     db = load_portfolio()
     accts = db.get('accounts', {})

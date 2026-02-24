@@ -5,7 +5,7 @@ Based on: vix_ema(3) vs vix_ma(20) and absolute VIX levels.
 
 import pandas as pd
 import numpy as np
-from common import (
+from core.common import (
     download_multiple_tickers,
     get_data_start_date,
     calculate_daily_yield,

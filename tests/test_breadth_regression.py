@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-import reporting
+from core import reporting
 from strategies.breadth import run_breadth_backtest
 
 # ==============================================================================

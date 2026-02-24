@@ -7,7 +7,7 @@ import numpy as np
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from strategies.moving_average import run_moving_average_strategy
-from reporting import get_all_metrics
+from core.reporting import get_all_metrics
 
 def test_moving_average_performance():
     """

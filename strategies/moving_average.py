@@ -7,7 +7,7 @@ Aligned with Portfolio Visualizer's tactical asset allocation model.
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from common import (
+from core.common import (
     download_price_data,
     get_data_start_date,
     calculate_daily_yield,

@@ -5,7 +5,7 @@ Allocates 1/3 capital to each: Market Breadth, 9-Sig, and Volatility.
 
 import pandas as pd
 import numpy as np
-from common import build_strategy_result, make_empty_result
+from core.common import build_strategy_result, make_empty_result
 from strategies.breadth import run_breadth_backtest
 from strategies.ninesig import run_9sig_strategy
 from strategies.volatility import run_volatility_strategy

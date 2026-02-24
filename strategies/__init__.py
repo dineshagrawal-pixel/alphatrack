@@ -3,13 +3,13 @@ Strategies package
 Exports all trading strategies and their configurations.
 """
 
-from strategies.breadth import run_breadth_backtest
-from strategies.volatility import run_volatility_strategy
-from strategies.ninesig import run_9sig_strategy as run_9sig_strategy
-from strategies.moving_average import run_moving_average_strategy
-from strategies.dual_momentum import run_dual_momentum_strategy
-from strategies.volatility_vix import run_volatility_vix_strategy
-from strategies.combined import run_combined_strategy
+from .breadth import run_breadth_backtest
+from .volatility import run_volatility_strategy
+from .ninesig import run_9sig_strategy as run_9sig_strategy
+from .moving_average import run_moving_average_strategy
+from .dual_momentum import run_dual_momentum_strategy
+from .volatility_vix import run_volatility_vix_strategy
+from .combined import run_combined_strategy
 
 
 # Strategy configurations with UI parameters

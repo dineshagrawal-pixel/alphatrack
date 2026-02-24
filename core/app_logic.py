@@ -4,9 +4,9 @@ import json
 import os
 from datetime import datetime, timedelta
 from strategies import STRATEGIES
-from reporting import generate_backtest_report
+from .reporting import generate_backtest_report
 
-CONFIG_FILE = "strategy_configs.json"
+CONFIG_FILE = os.path.join("data", "strategy_configs.json")
 
 def load_configs():
     if os.path.exists(CONFIG_FILE):

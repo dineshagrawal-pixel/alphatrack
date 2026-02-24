@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-import reporting
+from core import reporting
 from strategies.breadth import run_breadth_backtest
 from strategies.volatility import run_volatility_strategy
 from strategies.ninesig import run_9sig_strategy

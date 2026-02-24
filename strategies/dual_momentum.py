@@ -6,7 +6,7 @@ Combines Relative Momentum (which asset is better) and Absolute Momentum (is the
 
 import pandas as pd
 import numpy as np
-from common import (
+from core.common import (
     download_price_data,
     download_multiple_tickers,
     get_data_start_date,

@@ -6,7 +6,8 @@ Uses breadth data (high-low quantity) to generate trading signals.
 import pandas as pd
 import yfinance as yf
 import numpy as np
-from common import (
+import os
+from core.common import (
     load_breadth_data_v2,
     download_price_data,
     get_data_start_date,
@@ -22,7 +23,7 @@ from common import (
 )
 
 # Default path for breadth data
-BREADTH_FILE_PATH = 'pine-logs-High_Low-data.csv'
+BREADTH_FILE_PATH = os.path.join('data', 'market_breadth_data.csv')
 
 
 def run_breadth_backtest(

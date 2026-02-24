@@ -11,8 +11,8 @@ import io
 
 from strategies import STRATEGIES
 
-PORTFOLIO_FILE = 'my_portfolio_pro.json'
-CONFIG_FILE    = 'strategy_configs.json'
+PORTFOLIO_FILE = os.path.join('data', 'my_portfolio_pro.json')
+CONFIG_FILE    = os.path.join('data', 'strategy_configs.json')
 
 
 # ─────────────────────────────────────────────

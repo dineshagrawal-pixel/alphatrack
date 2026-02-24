@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter, FuncFormatter
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
-from common import BacktestResult
+from .common import BacktestResult
 
 
 # ==========================================
@@ -3051,7 +3051,7 @@ def generate_backtest_report(result: BacktestResult):
     benchmark_symbol = result.benchmark_symbol
 
     # 1. PRE-COMPUTE DATA
-    from common import calculate_pnl_from_trades
+    from .common import calculate_pnl_from_trades
     strategic_trade_log = [t for t in trade_log_results if t.get('Status') != 'FLOOR REFILL']
     s_pnl_list, s_pnl_pct_list = calculate_pnl_from_trades(strategic_trade_log)
 
@@ -3233,7 +3233,7 @@ def generate_backtest_report_compat(
         generate_backtest_report(result)
     """
     import pandas as pd
-    from common import BacktestResult
+    from .common import BacktestResult
     trade_log_df = pd.DataFrame(trade_log_results) if trade_log_results else pd.DataFrame()
     result = BacktestResult(
         df_results=df_results,
