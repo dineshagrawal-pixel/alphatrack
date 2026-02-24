@@ -7,7 +7,7 @@ import pandas as pd
 import yfinance as yf
 import numpy as np
 from common import (
-    load_breadth_data,
+    load_breadth_data_v2,
     download_price_data,
     get_data_start_date,
     calculate_daily_yield,
@@ -22,7 +22,7 @@ from common import (
 )
 
 # Default path for breadth data
-BREADTH_FILE_PATH = 'pine-logs-TTS.csv'
+BREADTH_FILE_PATH = 'pine-logs-High_Low-data.csv'
 
 
 def run_breadth_backtest(
@@ -36,7 +36,8 @@ def run_breadth_backtest(
     slippage_bps=0.0,
     commission=0.0,
     start_date=None,
-    end_date=None
+    end_date=None,
+    exchange="Nasdaq"
 ):
     """
     Run Market Breadth Strategy Backtest.
@@ -47,10 +48,6 @@ def run_breadth_backtest(
         rebalance_pct: Rebalance percentage (0-1)
         starting_cash_pct: Starting cash percentage (0-1)
         cash_yield_apr: Cash yield APR
-        signal_sma_len: Signal SMA length
-        signal_ema_len: Signal EMA length
-        price_ema_len: Price EMA length
-        price_sma_len: Price SMA length
         ticker: Stock ticker symbol
         benchmark_symbol: Benchmark ticker symbol
         
@@ -63,8 +60,11 @@ def run_breadth_backtest(
     PRICE_EMA_LEN = 3
     PRICE_SMA_LEN = 200
 
-    # Load breadth data
-    breadth = load_breadth_data(BREADTH_FILE_PATH)
+    # Load breadth data (Nasdaq or NYSE)
+    breadth = load_breadth_data_v2(BREADTH_FILE_PATH, exchange=exchange)
+    
+    if breadth.empty:
+        return _create_empty_results(str(pd.Timestamp.now().date()), initial_capital, benchmark_symbol, ticker, "Breadth data file is empty or missing required columns.")
     
     # Use standardized start date if provided to maximize cache hits
     if start_date:
@@ -79,7 +79,7 @@ def run_breadth_backtest(
     
     if prices.empty:
         # Return empty data if no data available
-        return _create_empty_results(start_str, initial_capital, benchmark_symbol, ticker)
+        return _create_empty_results(start_str, initial_capital, benchmark_symbol, ticker, f"Price download failed for ticker: {ticker}")
     
     prices.rename(columns={"Close": "close"}, inplace=True)
 
@@ -87,7 +87,7 @@ def run_breadth_backtest(
     benchmark_prices = download_price_data(benchmark_symbol, start_str)
     
     if benchmark_prices.empty:
-        return _create_empty_results(start_str, initial_capital, benchmark_symbol, ticker)
+        return _create_empty_results(start_str, initial_capital, benchmark_symbol, ticker, f"Price download failed for benchmark: {benchmark_symbol}")
     
     benchmark_col = f"{benchmark_symbol}_Close"
     benchmark_prices.rename(columns={"Close": benchmark_col}, inplace=True)
@@ -105,7 +105,7 @@ def run_breadth_backtest(
         df = df[df.index <= pd.Timestamp(end_date)]
 
     if len(df) == 0:
-        return _create_empty_results(start_str, initial_capital, benchmark_symbol, ticker)
+        return _create_empty_results(start_str, initial_capital, benchmark_symbol, ticker, "No overlapping data found between breadth and price data for the selected range.")
 
     # Calculate indicators
     sma5 = df['highlowq'].rolling(SIGNAL_SMA_LEN).mean()
@@ -116,7 +116,7 @@ def run_breadth_backtest(
     df = df.dropna()
 
     if len(df) == 0:
-        return _create_empty_results(start_str, initial_capital, benchmark_symbol, ticker)
+        return _create_empty_results(start_str, initial_capital, benchmark_symbol, ticker, "Not enough data after calculating indicators (SMA/EMA).")
 
     # Initialize states
     cash = initial_capital * starting_cash_pct
@@ -230,6 +230,6 @@ def run_breadth_backtest(
     )
 
 
-def _create_empty_results(start_date, initial_capital, benchmark_symbol, ticker):
+def _create_empty_results(start_date, initial_capital, benchmark_symbol, ticker, error_msg=None):
     """Create empty results when no data is available."""
-    return make_empty_result(start_date, initial_capital, ticker, benchmark_symbol)
+    return make_empty_result(start_date, initial_capital, ticker, benchmark_symbol, error=error_msg)

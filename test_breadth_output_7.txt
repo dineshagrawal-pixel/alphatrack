@@ -1,0 +1,129 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.12, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\playground\app\alphalab
+collected 1 item
+
+tests\test_breadth_regression.py F                                       [100%]
+
+================================== FAILURES ===================================
+_________________ test_market_breadth_performance_regression __________________
+
+    def test_market_breadth_performance_regression():
+        """
+        Verifies that the Market Breadth strategy preserves its core performance
+        profile on a fixed historical dataset.
+        """
+        # Use standard default parameters
+        params = {
+            "ticker": "TQQQ",
+            "initial_capital": 100000.0,
+            "cash_floor_pct": 0.2,
+            "rebalance_pct": 1.0,
+            "starting_cash_pct": 1.0,
+            "cash_yield_apr": 0.0,
+            "benchmark_symbol": "SPY",
+            "slippage_bps": 5.0,
+            "commission": 0.0,
+            "end_date": REFERENCE_END_DATE  # Pin the end date to prevent drift
+        }
+    
+        result = run_breadth_backtest(**params)
+    
+        df = result.df_results
+        trade_log = result.trade_log
+    
+        # Calculate metrics exactly as the UI does
+        strat_rets = df['ret'].dropna()
+        bench_rets = df['BH'].pct_change().dropna()
+        if params["benchmark_symbol"] in df.columns:
+            bench_rets = df[params["benchmark_symbol"]].pct_change().dropna()
+    
+        metrics = reporting.calculate_pv_metrics(strat_rets, bench_rets, df['Strategy'])
+    
+        # Internal keys: GM_A (CAGR), MDD (Max Drawdown)
+        actual_cagr = f"{metrics.get('GM_A', 0)*100:.2f}%"
+        actual_mdd = f"{metrics.get('MDD', 0)*100:.2f}%"
+    
+        # Filter for strategic trades only (exclude FLOOR REFILL)
+        strategic_trades = [t for t in trade_log.to_dict('records') if t.get('Status') != 'FLOOR REFILL']
+        actual_trades = len(strategic_trades)
+    
+        # Regression Assertions
+        print(f"\n[BREADTH REGRESSION] Strategic Trades Log:")
+        for t in strategic_trades:
+            print(f"  {t.get('Entry Date')} | {t.get('Status')} | {t.get('Entry Price')} | {t.get('Exit Price')}")
+    
+        print(f"\n[BREADTH REGRESSION] Actual Trades Count: {actual_trades}")
+        print(f"\n[BREADTH REGRESSION] Actual Trades: {actual_trades}")
+        print(f"[BREADTH REGRESSION] Actual CAGR: {actual_cagr}")
+        print(f"[BREADTH REGRESSION] Actual MDD: {actual_mdd}")
+        assert actual_trades == EXPECTED_TRADES, \
+            f"Trade count regression! Expected {EXPECTED_TRADES}, got {actual_trades}"
+    
+>       assert actual_cagr == EXPECTED_CAGR, \
+            f"CAGR regression! Expected {EXPECTED_CAGR}, got {actual_cagr}"
+E       AssertionError: CAGR regression! Expected 34.67%, got 35.97%
+E       assert '35.97%' == '34.67%'
+E         
+E         - 34.67%
+E         + 35.97%
+
+tests\test_breadth_regression.py:75: AssertionError
+---------------------------- Captured stdout call -----------------------------
+
+[DEBUG BREADTH] First Date in Merge: 2010-02-11 00:00:00
+[DEBUG BREADTH] Last Date in Merge: 2026-02-23 00:00:00
+[DEBUG BREADTH] First 3 Rows:
+            highlowq     close  SPY_Close
+Date                                     
+2010-02-11      65.0  0.206396  81.126564
+2010-02-12      67.0  0.207241  81.059036
+2010-02-16     100.0  0.215268  82.334496
+[DEBUG BREADTH] Last 3 Rows:
+            highlowq      close   SPY_Close
+Date                                       
+2026-02-19      -7.0  48.830002  684.479980
+2026-02-20      18.0  50.060001  689.429993
+2026-02-23      18.0  48.240002  682.390015
+
+[BREADTH REGRESSION] Strategic Trades Log:
+  2010-11-26 | CLOSED | 0.34 | 0.37
+  2011-06-28 | CLOSED | 0.39 | 0.34
+  2011-10-21 | CLOSED | 0.38 | 0.37
+  2011-12-08 | CLOSED | 0.34 | 0.32
+  2011-12-29 | CLOSED | 0.34 | 0.46
+  2012-06-14 | CLOSED | 0.46 | 0.46
+  2012-11-30 | CLOSED | 0.52 | 1.72
+  2014-10-29 | CLOSED | 1.75 | 2.4
+  2015-10-14 | CLOSED | 1.95 | 2.39
+  2016-01-04 | CLOSED | 2.13 | 1.86
+  2016-03-07 | CLOSED | 1.81 | 1.87
+  2016-05-27 | CLOSED | 2.07 | 1.92
+  2016-07-07 | CLOSED | 1.97 | 6.93
+  2019-01-15 | CLOSED | 5.1 | 6.39
+  2019-06-14 | CLOSED | 6.89 | 7.22
+  2019-09-11 | CLOSED | 7.79 | 10.47
+  2020-03-23 | CLOSED | 4.26 | 4.99
+  2020-04-17 | CLOSED | 7.98 | 40.86
+  2022-03-28 | CLOSED | 28.47 | 24.8
+  2022-07-27 | CLOSED | 14.7 | 14.47
+  2022-11-03 | CLOSED | 8.2 | 8.86
+  2022-12-05 | CLOSED | 10.63 | 10.19
+  2023-01-12 | CLOSED | 9.48 | 10.64
+  2023-05-25 | CLOSED | 15.73 | 17.33
+  2023-11-21 | CLOSED | 21.37 | 25.89
+  2024-05-08 | CLOSED | 28.69 | 28.6
+  2024-08-21 | CLOSED | 35.39 | 34.37
+  2025-05-16 | CLOSED | 35.54 | 47.41
+  2025-12-02 | OPEN | 55.21 | None
+
+[BREADTH REGRESSION] Actual Trades Count: 29
+
+[BREADTH REGRESSION] Actual Trades: 29
+[BREADTH REGRESSION] Actual CAGR: 35.97%
+[BREADTH REGRESSION] Actual MDD: -37.49%
+---------------------------- Captured stderr call -----------------------------
+2026-02-23 18:37:19.602 WARNING streamlit.runtime.caching.cache_data_api: No runtime found, using MemoryCacheStorageManager
+=========================== short test summary info ===========================
+FAILED tests/test_breadth_regression.py::test_market_breadth_performance_regression
+============================== 1 failed in 8.01s ==============================

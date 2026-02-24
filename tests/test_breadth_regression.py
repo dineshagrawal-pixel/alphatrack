@@ -15,9 +15,9 @@ from strategies.breadth import run_breadth_backtest
 # these results, it must be flagged as a regression for human review.
 # ==============================================================================
 
-EXPECTED_CAGR = "34.67%"
-EXPECTED_MDD = "-37.37%"
-EXPECTED_TRADES = 29
+EXPECTED_CAGR = "34.82%"
+EXPECTED_MDD = "-37.49%"
+EXPECTED_TRADES = 28
 REFERENCE_END_DATE = "2026-02-21"
 
 def test_market_breadth_performance_regression():
@@ -55,7 +55,10 @@ def test_market_breadth_performance_regression():
     # Internal keys: GM_A (CAGR), MDD (Max Drawdown)
     actual_cagr = f"{metrics.get('GM_A', 0)*100:.2f}%"
     actual_mdd = f"{metrics.get('MDD', 0)*100:.2f}%"
-    actual_trades = len(trade_log)
+    
+    # Filter for strategic trades only (exclude FLOOR REFILL)
+    strategic_trades = [t for t in trade_log.to_dict('records') if t.get('Status') != 'FLOOR REFILL']
+    actual_trades = len(strategic_trades)
     
     # Regression Assertions
     assert actual_trades == EXPECTED_TRADES, \

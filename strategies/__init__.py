@@ -18,6 +18,7 @@ STRATEGIES = {
         "function": run_breadth_backtest,
         "params": [
             {"name": "ticker", "label": "Stock Symbol", "type": "text_input", "default": "TQQQ", "help": "The asset to trade based on market breadth signals."},
+            {"name": "exchange", "label": "Exchange", "type": "selectbox", "options": ["Nasdaq", "NYSE"], "default": "Nasdaq", "help": "Select which exchange's breadth data to use for signals."},
             {"name": "start_date", "label": "Start Date", "type": "date_input", "default": "2010-02-11", "help": "Beginning date for the backtest."},
             {"name": "initial_capital", "label": "Initial Capital", "type": "number_input", "default": 100000.0, "help": "Starting account balance."},
             {"name": "end_date", "label": "End Date", "type": "date_input", "default": "today", "help": "Ending date for the backtest."},

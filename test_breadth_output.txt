@@ -1,0 +1,59 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.12, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\playground\app\alphalab
+collected 1 item
+
+tests\test_breadth_regression.py F                                       [100%]
+
+================================== FAILURES ===================================
+_________________ test_market_breadth_performance_regression __________________
+
+    def test_market_breadth_performance_regression():
+        """
+        Verifies that the Market Breadth strategy preserves its core performance
+        profile on a fixed historical dataset.
+        """
+        # Use standard default parameters
+        params = {
+            "ticker": "TQQQ",
+            "initial_capital": 100000.0,
+            "cash_floor_pct": 0.2,
+            "rebalance_pct": 1.0,
+            "starting_cash_pct": 1.0,
+            "cash_yield_apr": 0.0,
+            "benchmark_symbol": "SPY",
+            "slippage_bps": 5.0,
+            "commission": 0.0,
+            "end_date": REFERENCE_END_DATE  # Pin the end date to prevent drift
+        }
+    
+        result = run_breadth_backtest(**params)
+    
+        df = result.df_results
+        trade_log = result.trade_log
+    
+        # Calculate metrics exactly as the UI does
+        strat_rets = df['ret'].dropna()
+        bench_rets = df['BH'].pct_change().dropna()
+        if params["benchmark_symbol"] in df.columns:
+            bench_rets = df[params["benchmark_symbol"]].pct_change().dropna()
+    
+        metrics = reporting.calculate_pv_metrics(strat_rets, bench_rets, df['Strategy'])
+    
+        # Internal keys: GM_A (CAGR), MDD (Max Drawdown)
+        actual_cagr = f"{metrics.get('GM_A', 0)*100:.2f}%"
+        actual_mdd = f"{metrics.get('MDD', 0)*100:.2f}%"
+        actual_trades = len(trade_log)
+    
+        # Regression Assertions
+>       assert actual_trades == EXPECTED_TRADES, \
+            f"Trade count regression! Expected {EXPECTED_TRADES}, got {actual_trades}"
+E       AssertionError: Trade count regression! Expected 29, got 110
+E       assert 110 == 29
+
+tests\test_breadth_regression.py:61: AssertionError
+---------------------------- Captured stderr call -----------------------------
+2026-02-23 18:14:39.425 WARNING streamlit.runtime.caching.cache_data_api: No runtime found, using MemoryCacheStorageManager
+=========================== short test summary info ===========================
+FAILED tests/test_breadth_regression.py::test_market_breadth_performance_regression
+============================= 1 failed in 10.56s ==============================

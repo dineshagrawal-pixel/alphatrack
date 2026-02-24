@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from strategies.breadth import run_breadth_backtest
-from common import load_breadth_data
+from common import load_breadth_data_v2, calculate_pnl_from_trades, create_results_dataframe, create_rolling_returns_df, create_cash_pct_df
 import reporting
 
 def capture_baseline():

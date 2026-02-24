@@ -185,7 +185,8 @@ if nav_selection == "📈 Strategy Lab":
             st.rerun()
             
         if hasattr(result, 'strategy_name') and result.strategy_name == "Empty Result":
-            st.error("### ⚠️ Data Download Failed\nYahoo Finance is currently rate-limiting this request (common on shared hosting). Please try again in 5-10 minutes or try a different asset/date range.")
+            error_reason = result.params.get('error', 'Yahoo Finance is currently rate-limiting this request.')
+            st.error(f"### ⚠️ Data Download Failed\n{error_reason}\n\nPlease try again in 5-10 minutes or try a different asset/date range.")
         else:
             generate_backtest_report(result)
     else:

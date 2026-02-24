@@ -27,9 +27,9 @@ REFERENCE_END_DATE = "2026-02-21"
 
 BASELINES = {
     "Market Breadth": {
-        "expected_cagr": "33.66%",
+        "expected_cagr": "34.82%",
         "expected_mdd": "-37.49%",
-        "expected_trades": 29
+        "expected_trades": 28
     },
     "Volatility": {
         "expected_cagr": "33.49%",

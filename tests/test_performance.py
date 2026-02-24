@@ -23,6 +23,7 @@ def test_moving_average_performance():
         start_date_val=pd.to_datetime("2010-02-11").date(),
         initial_capital_val=10000.0,
         lookback_period_months=11,
+        cash_yield_apr=0.0,
         eval_frequency="Monthly"
     )
     

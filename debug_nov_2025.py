@@ -3,7 +3,7 @@ import numpy as np
 from strategies.breadth import run_breadth_backtest
 from common import load_breadth_data
 
-BREADTH_FILE_PATH = 'pine-logs-TTS.csv'
+BREADTH_FILE_PATH = 'pine-logs-High_Low-data.csv'
 
 def diagnostic():
     # Load breadth data

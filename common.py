@@ -10,6 +10,8 @@ import numpy as np
 import streamlit as st
 from functools import lru_cache
 import datetime
+import time
+import random
 
 GLOBAL_DATA_BUFFER_DAYS = 730 # 2 Years standard buffer
 
@@ -102,6 +104,7 @@ def make_empty_result(
     initial_capital: float,
     symbol: str,
     benchmark_symbol: str = "SPY",
+    error: str = None
 ) -> BacktestResult:
     """Return a BacktestResult populated with dummy data (used when data download fails)."""
     df_results = create_empty_results_df(start_date, initial_capital, benchmark_symbol)
@@ -121,6 +124,7 @@ def make_empty_result(
         rolling_returns_df=rolling_returns_df,
         cash_pct_df=cash_pct_df,
         strategy_name="Empty Result",
+        params={'error': error} if error else {}
     )
 
 
@@ -137,22 +141,44 @@ def get_data_start_date(start_date_val, buffer_days=GLOBAL_DATA_BUFFER_DAYS):
     return buf_dt.replace(day=1)
 
 @st.cache_data(show_spinner=False, ttl=86400)
-def _cached_yf_download(ticker, start_date):
-    """Internal cached downloader."""
-    try:
-        t = ticker.upper() if isinstance(ticker, str) else ticker
-        s = pd.to_datetime(start_date).strftime('%Y-%m-%d')
-        # Note: Do not pass custom session as it causes curl_cffi errors in newer yf versions
-        data = yf.download(t, start=s, progress=False, auto_adjust=True)
-        return data
-    except Exception as e:
-        return pd.DataFrame()
+def _cached_yf_download_v10(ticker, start_date):
+    """
+    Internal cached downloader. 
+    IMPORTANT: We raise an exception on failure so Streamlit doesn't cache empty results.
+    """
+    t = ticker.upper() if isinstance(ticker, str) else ticker
+    s = pd.to_datetime(start_date).strftime('%Y-%m-%d')
+    
+    # Note: Do not pass custom session as it causes curl_cffi errors in newer yf versions
+    data = yf.download(t, start=s, progress=False, auto_adjust=True)
+    
+    # Fallback to Ticker.history if download returns empty (sometimes more robust)
+    if data is None or data.empty:
+        try:
+            data = yf.Ticker(t).history(start=s, auto_adjust=True)
+        except:
+            pass
+
+    if data is None or data.empty:
+        raise ValueError(f"YF Download failed for {t}")
+        
+    return data
 
 def download_price_data(ticker, start_date, progress=False):
     """
     Download price data with robust handling for yfinance's MultiIndex structure.
+    Includes retry logic with jittered backoff.
     """
-    raw = _cached_yf_download(ticker, start_date)
+    raw = pd.DataFrame()
+    for attempt in range(3):
+        try:
+            raw = _cached_yf_download_v10(ticker, start_date)
+            if not raw.empty: break
+        except Exception:
+            if attempt < 2:
+                time.sleep(1 + attempt + random.random())
+                continue
+            return pd.DataFrame()
     
     if raw.empty:
         return pd.DataFrame()
@@ -169,8 +195,11 @@ def download_price_data(ticker, start_date, progress=False):
                     break
             except: continue
     else:
-        if 'Close' in raw.columns:
-            prices = raw[['Close']]
+        # Check for Close or close
+        for c in ['Close', 'close']:
+            if c in raw.columns:
+                prices = raw[[c]]
+                break
 
     if prices.empty:
         return pd.DataFrame()
@@ -183,45 +212,65 @@ def download_price_data(ticker, start_date, progress=False):
         prices = prices.to_frame()
         
     prices.columns = ['Close']
+    prices.index = pd.to_datetime(prices.index).tz_localize(None).normalize()
     return prices.dropna()
 
 
 @st.cache_data(show_spinner=False, ttl=86400)
-def _cached_yf_download_multi(tickers, start_date):
-    """Internal cached downloader for multiple tickers."""
-    try:
-        t_list = sorted(tickers) if isinstance(tickers, list) else tickers
-        s = pd.to_datetime(start_date).strftime('%Y-%m-%d')
-        data = yf.download(t_list, start=s, progress=False, auto_adjust=True)
-        return data
-    except Exception:
-        return pd.DataFrame()
+def _cached_yf_download_multi_v10(tickers, start_date):
+    """Internal cached downloader for multiple tickers. Raises error on failure."""
+    t_list = sorted(tickers) if isinstance(tickers, list) else tickers
+    s = pd.to_datetime(start_date).strftime('%Y-%m-%d')
+    data = yf.download(t_list, start=s, progress=False, auto_adjust=True)
+    
+    if data is None or data.empty:
+        raise ValueError(f"YF Multi-Download failed for {tickers}")
+    return data
 
 def download_multiple_tickers(tickers, start_date, progress=False):
     """
-    Download price data for multiple tickers with robust MultiIndex handling.
+    Download price data for multiple tickers with robust MultiIndex handling and retries.
     """
     if not tickers:
         return pd.DataFrame()
     
-    raw = _cached_yf_download_multi(tickers, start_date)
+    raw = pd.DataFrame()
+    for attempt in range(3):
+        try:
+            raw = _cached_yf_download_multi_v10(tickers, start_date)
+            if not raw.empty: break
+        except Exception:
+            if attempt < 2:
+                time.sleep(1 + attempt + random.random())
+                continue
+            return pd.DataFrame()
     
     if raw.empty:
         return pd.DataFrame()
     
+    result_df = pd.DataFrame()
     # For multiple tickers, yf returns [Attribute, Ticker] with auto_adjust=True
     if isinstance(raw.columns, pd.MultiIndex):
         for level_name in ['Price', None, 0, 1]:
             try:
-                if 'Close' in raw.columns.get_level_values(level_name if level_name is not None else 0):
-                    prices = raw.xs('Close', axis=1, level=(level_name if level_name is not None else 0))
-                    return prices.dropna()
+                # Get the level values for the current level name
+                lvl = level_name if level_name is not None else 0
+                if 'Close' in raw.columns.get_level_values(lvl):
+                    # Extract the Close columns
+                    result_df = raw.xs('Close', axis=1, level=lvl)
+                    break
             except: continue
-    else:
-        if 'Close' in raw.columns:
-            return raw[['Close']].dropna()
     
-    return raw.dropna()
+    if result_df.empty:
+        # Fallback to checking columns directly
+        cols = [c for c in raw.columns if 'Close' in str(c) or 'close' in str(c)]
+        if cols:
+            result_df = raw[cols]
+        else:
+            result_df = raw
+    
+    result_df.index = pd.to_datetime(result_df.index).tz_localize(None).normalize()
+    return result_df.dropna()
 
 
 def merge_with_benchmark(df, benchmark_symbol, start_date):
@@ -236,7 +285,7 @@ def merge_with_benchmark(df, benchmark_symbol, start_date):
     Returns:
         DataFrame merged with benchmark data
     """
-    benchmark_prices = yf.download(benchmark_symbol, start=start_date, progress=False)
+    benchmark_prices = download_price_data(benchmark_symbol, start_date)
     
     if benchmark_prices.empty:
         return df
@@ -589,29 +638,48 @@ def validate_price_data_and_get_defaults(prices, start_date, initial_capital, be
 # DATA LOADING UTILITIES
 # ==========================================
 
-def load_breadth_data(path):
+def load_breadth_data_v2(path, exchange="Nasdaq"):
     """
     Load and process breadth data from CSV file.
-    
-    Args:
-        path: Path to the breadth CSV file
-        
-    Returns:
-        DataFrame with Date index and highlowq column
+    Handles messy columns with thousands separators (e.g. "3,700").
     """
-    raw_df = pd.read_csv(path)
+    import csv
     clean_rows = []
-    for _, row in raw_df.iterrows():
-        parts = str(row['Message']).split(',')
-        if len(parts) >= 3:
-            date_str = parts[0].strip()
-            highs = float(parts[1].strip())
-            lows = float(parts[2].strip())
-            diff = highs - lows
-            clean_rows.append([date_str, diff])
+    
+    with open(path, 'r') as f:
+        reader = csv.reader(f)
+        header = next(reader) # Date,HIGQ,LOWQ,HIGN,LOWN
+        
+        for row in reader:
+            if len(row) < 2: continue
+            try:
+                date_val = row[0]
+                if len(row) == 5:
+                    # Healthy row: just remove internal commas from segments
+                    clean_nums = [r.replace(',', '').strip() for r in row[1:]]
+                else:
+                    # Malformed/Quoted row: use aggressive regex merging
+                    import re
+                    full_raw = ",".join(row[1:]).replace('"', '')
+                    # Merge digit + comma + 3-digits
+                    clean_str = re.sub(r'(\d),(\d{3})(?![0-9])', r'\1\2', full_raw)
+                    clean_nums = [p.strip() for p in clean_str.split(',') if p.strip()]
+
+                if len(clean_nums) < 2: continue
+                
+                if exchange == "Nasdaq":
+                    # HIGQ (idx 0), LOWQ (idx 1)
+                    val = float(clean_nums[0]) - float(clean_nums[1])
+                else:
+                    # NYSE: HIGN (idx 2), LOWN (idx 3)
+                    val = float(clean_nums[2]) - float(clean_nums[3])
+                    
+                clean_rows.append([date_val, val])
+            except (ValueError, IndexError):
+                continue
 
     df = pd.DataFrame(clean_rows, columns=['Date', 'highlowq'])
-    df['Date'] = pd.to_datetime(df['Date'])
+    df['Date'] = pd.to_datetime(df['Date'], utc=True).dt.tz_convert(None).dt.normalize()
     df.set_index('Date', inplace=True)
     return df.sort_index()
 
